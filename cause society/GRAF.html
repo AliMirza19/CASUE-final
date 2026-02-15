@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphic Designer Dashboard - Cause Society CUST</title>
+    <!-- Tailwind CSS CDN --><script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display.swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #ffffff; 
+        }
+        .btn-primary { 
+            background-color: #5d3a8e; 
+            border: none; 
+            transition: background-color 0.2s ease-in-out;
+        }
+        .btn-primary:hover { 
+            background-color: #4a2f72; 
+        }
+        .scroll-area { max-height: calc(100vh - 120px); overflow-y: auto; }
+        .event-status { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; }
+        .status-pending { background-color: #fcd34d; color: #92400e; } /* Pending GD Upload */
+        .status-approved { background-color: #10b981; color: #ecfdf5; } /* Final Approved */
+        .status-rejected { background-color: #f87171; color: #fef2f2; } /* Pending Revision */
+        .status-review { background-color: #3b82f6; color: #eff6ff; } /* Pending President Review */
+        .modal-overlay { background-color: rgba(0, 0, 0, 0.75); }
+
+        /* Custom scrollbar */
+        .scroll-area::-webkit-scrollbar { width: 8px; }
+        .scroll-area::-webkit-scrollbar-track { background: #e0e0e0; border-radius: 10px; }
+        .scroll-area::-webkit-scrollbar-thumb { background-color: #9275B7; border-radius: 10px; border: 2px solid #e0e0e0; }
+        .scroll-area::-webkit-scrollbar-thumb:hover { background-color: #5d3a8e; }
+        
+        /* Form focus styles */
+        input:focus, textarea:focus, select:focus {
+            border-color: #5d3a8e;
+            box-shadow: 0 0 0 2px rgba(93, 58, 142, 0.4);
+        }
+        
+        /* Modal Animation */
+        .modal-content {
+            transition: all 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Top Navigation Bar (Themed Purple) -->
+    <nav id="app-header" class="bg-[#5d3a8e] p-4 flex items-center justify-between shadow-lg z-10 hidden">
+        <div class="flex items-center">
+            <img src="https://play-lh.googleusercontent.com/8QQUZDWOC8RpSqVsw2apjdnLiHvyLc1vJBpOC0MNQcE3_-JHv3XtW1K5m6YmVA6I-A" alt="CUST Logo" class="h-10 w-10 mr-3 rounded-full bg-white p-1">
+            <span class="text-white text-xl font-extrabold">CAUSE Society</span>
+            <span class="text-white text-sm ml-2 hidden md:inline opacity-80">Graphic Designer Portal</span>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+            <!-- User Info and Profile Button -->
+            <span id="header-user-info" class="text-white text-md font-semibold hidden sm:inline"></span>
+            <button onclick="renderApp('profile')" class="relative text-white hover:opacity-80 transition duration-150">
+                <img id="header-profile-pic" src="https://placehold.co/40x40/cccccc/333333?text=P" alt="Profile" class="h-10 w-10 rounded-full object-cover border-2 border-white shadow-md">
+            </button>
+            <button onclick="handleLogout()" class="bg-[#9275B7] hover:bg-[#a68bc4] text-white font-semibold py-1 px-3 rounded-lg text-sm transition duration-150">Logout</button>
+        </div>
+    </nav>
+
+    <div class="flex flex-1">
+        
+        <!-- Sidebar Navigation (Fixed) -->
+        <aside id="app-sidebar" class="w-64 bg-white p-4 shadow-xl sticky top-0 h-screen overflow-y-auto z-0 hidden" style="padding-top: 1rem; border-right: 1px solid #e5e7eb;">
+            <nav class="space-y-2" id="sidebar-nav">
+                <!-- Sidebar content will be rendered by renderSidebar() -->
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main id="app-container" class="flex-1 p-4 md:p-8 bg-gray-50">
+            
+            <div id="message-box" class="fixed top-20 right-5 z-50 transition-transform duration-500 transform translate-x-full"></div>
+
+            <div id="main-content">
+                <!-- Content will be rendered here by renderApp function -->
+                <div class="max-w-xl mx-auto p-6 bg-white shadow-xl rounded-xl">
+                    <p class="text-center text-gray-600 mb-6">System is Loading...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    
+    <!-- Modal for Uploading Design -->
+    <div id="upload-modal" class="hidden fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-8 modal-content transform transition-all duration-300 scale-95 opacity-0">
+            <h3 class="text-2xl font-bold mb-4 text-green-700">Upload Design</h3>
+            <p class="mb-4 text-sm text-gray-700" id="upload-event-title">Event: ...</p>
+            <form id="upload-form" onsubmit="handleUploadSubmission(event)">
+                <input type="hidden" name="requestId" id="upload-requestId">
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-semibold mb-2" for="upload-imageUrl">Image URL</label>
+                    <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" id="upload-imageUrl" name="imageUrl" type="url" placeholder="https://placehold.co/..." required>
+                    <p class="text-xs text-gray-500 mt-1">(Demo: Paste a link to your design, e.g., from placehold.co)</p>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeUploadModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">
+                        Submit for Review
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Floating Chat Button (UI Enhancement) -->
+    <button id="fab-chat" class="hidden fixed bottom-6 right-6 bg-[#5d3a8e] hover:bg-[#4a2f72] text-white p-4 rounded-full shadow-xl hover:shadow-2xl transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none z-40">
+        <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+    </button>
+
+    
+    <script>
+        // NO FIREBASE SCRIPT (MOCK DEMO MODE)
+
+        let userId = null;
+        let userName = '';
+        let userRegId = '';
+        let userProfile = {}; 
+        let isAuthReady = false;
+        let currentView = 'login'; // Start at login
+        
+        // --- Mock Data States ---
+        let graphicDesignRequests = []; // Tasks for GD
+        
+        // --- Utility Functions ---
+
+        function showMessage(message, type = 'success', duration = 4000) {
+            const box = document.getElementById('message-box');
+            if (!box) return;
+
+            const bgColor = type === 'error' ? 'bg-red-500' : type === 'warning' ? 'bg-yellow-500' : 'bg-green-500';
+            const html = `
+                <div class="${bgColor} text-white p-4 rounded-xl shadow-2xl mb-3 flex items-center">
+                    <span class="flex-grow">${message}</span>
+                    <button onclick="this.parentNode.remove()" class="ml-4 font-bold">&times;</button>
+                </div>
+            `;
+            box.insertAdjacentHTML('afterbegin', html);
+            box.classList.remove('translate-x-full');
+            box.classList.add('translate-x-0');
+
+            setTimeout(() => {
+                const elementToRemove = box.lastElementChild;
+                if (elementToRemove) elementToRemove.remove();
+                if (box.children.length === 0) {
+                    box.classList.remove('translate-x-0');
+                    box.classList.add('translate-x-full');
+                }
+            }, duration);
+        }
+        window.showMessage = showMessage;
+        
+        // --- UI Helper Functions ---
+        function getFriendlyTitle(view) {
+            const titles = {
+                'overview': 'Designer Dashboard',
+                'pending-tasks': 'Pending Design Tasks',
+                'profile': 'Profile Settings',
+                'login': 'Welcome, Designer',
+            };
+            return titles[view] || 'Dashboard';
+        }
+
+        function getFriendlySubtitle(view) {
+            const subtitles = {
+                'overview': `Welcome back, ${userName || 'Designer'}. Here are your stats.`,
+                'pending-tasks': 'Review instructions, upload designs, and manage revisions.',
+                'profile': 'Update your personal details and change your password.',
+                'login': 'Log in to the CAUSE Society Designer Portal.',
+            };
+            return subtitles[view] || `Welcome, ${userName || 'Designer'}.`;
+        }
+
+        // --- Sample Data Injection ---
+        
+        function loadSampleData() {
+            // Data for Graphic Designer's review list
+            if (graphicDesignRequests.length === 0) {
+                graphicDesignRequests = [
+                    { 
+                        id: 'gd_req1', 
+                        eventTitle: 'DevDay Conference 2025', 
+                        status: 'Pending GD Upload', 
+                        instructions: 'Please create a professional poster. Focus on the theme "DevOps and Cloud". Use CUST branding. Needs to be ready for print and social media.', 
+                        imageUrl: null, 
+                        feedback: [] 
+                    },
+                    { 
+                        id: 'gd_req2', 
+                        title: 'Intro to Git/GitHub Workshop', 
+                        status: 'Pending GD Revision', 
+                        instructions: 'A simple post for first-year students. Keep it beginner-friendly.', 
+                        imageUrl: 'https://placehold.co/600x400/9275B7/ffffff?text=Git+Workshop+V1', 
+                        feedback: [{ role: 'President', message: 'The colors are a bit dark. Please make it brighter and more welcoming for new students. Add the society logo in the corner.' }] 
+                    },
+                    { 
+                        id: 'gd_req3', 
+                        title: 'Annual Code Marathon', 
+                        status: 'Pending President Review', 
+                        instructions: 'High-energy post needed.', 
+                        imageUrl: 'https://placehold.co/600x400/1e3a8a/ffffff?text=Code+Marathon+V1', 
+                        feedback: [] 
+                    },
+                ];
+            }
+           
+            userProfile = {
+                phone: '+92 321 7776666',
+                address: 'CUST University, Islamabad',
+                picUrl: 'https://placehold.co/100x100/7c3aed/ffffff?text=HW',
+            };
+        }
+
+
+        // --- Initialization and Mock Auth Setup ---
+
+        function initApp() {
+            isAuthReady = true;
+            loadSampleData(); 
+            renderApp('login'); // Start at login screen
+        }
+        
+        // --- Mock Authentication Handlers ---
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const regId = e.target.regId.value;
+            
+            // Log in as mock Graphic Designer
+            userId = 'mock-gd-001';
+            userName = 'Haris Waheed'; // Mock user name
+            userRegId = regId || 'GD-001'; // Use entered ID or default
+            
+            loadSampleData();
+            
+            showMessage(`Welcome back, ${userName}!`, 'success');
+            renderApp('overview'); // Navigate to dashboard
+        }
+        window.handleLogin = handleLogin;
+
+        function handleLogout() {
+            userId = null;
+            userName = '';
+            userRegId = '';
+            userProfile = {};
+            graphicDesignRequests = [];
+            
+            showMessage("You have been successfully logged out.");
+            renderApp('login');
+        }
+        window.handleLogout = handleLogout;
+        
+        async function handlePasswordUpdate(e) {
+            e.preventDefault();
+            showMessage("Password successfully updated (Demo).", 'success');
+            e.target.reset(); 
+        }
+        window.handlePasswordUpdate = handlePasswordUpdate;
+
+        async function handleProfileUpdate(e) {
+            e.preventDefault();
+            const form = e.target;
+            
+            userProfile.phone = form.phone.value;
+            userProfile.address = form.address.value;
+            userProfile.picUrl = form.picUrl.value;
+            
+            showMessage("Profile details updated successfully (Demo).", 'success');
+            renderApp('profile'); 
+        }
+        window.handleProfileUpdate = handleProfileUpdate;
+
+
+        // --- Graphic Designer Specific Logic (Mock) ---
+
+        window.openUploadModal = function(requestId, title) {
+            document.getElementById('upload-requestId').value = requestId;
+            document.getElementById('upload-event-title').innerText = `Event: ${title}`;
+            
+            const modal = document.getElementById('upload-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.querySelector('.modal-content').classList.remove('scale-95', 'opacity-0');
+                modal.querySelector('.modal-content').classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+        
+        window.closeUploadModal = function() {
+            const modal = document.getElementById('upload-modal');
+            modal.querySelector('.modal-content').classList.remove('scale-100', 'opacity-100');
+            modal.querySelector('.modal-content').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300); 
+        }
+
+        window.handleUploadSubmission = function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const requestId = form.requestId.value;
+            const imageUrl = form.imageUrl.value;
+            
+            const requestIndex = graphicDesignRequests.findIndex(r => r.id === requestId);
+            if (requestIndex > -1) {
+                graphicDesignRequests[requestIndex].status = 'Pending President Review';
+                graphicDesignRequests[requestIndex].imageUrl = imageUrl;
+                graphicDesignRequests[requestIndex].feedback = []; // Clear old feedback
+                
+                showMessage("Design submitted to President for review (Demo).", 'success');
+                renderApp('pending-tasks'); 
+            }
+            
+            closeUploadModal();
+            form.reset();
+        }
+        
+        // --- Rendering Functions ---
+
+        function renderApp(view = 'overview') {
+            const container = document.getElementById('main-content');
+            const header = document.getElementById('app-header');
+            const sidebar = document.getElementById('app-sidebar');
+            const fab = document.getElementById('fab-chat');
+            currentView = view;
+
+            if (!isAuthReady) {
+                container.innerHTML = `<p class="text-center text-gray-600">Waiting for Authentication...</p>`;
+                return;
+            }
+
+            if (!userId) {
+                // User is logged out
+                container.innerHTML = renderLandingPage();
+                header.classList.add('hidden');
+                sidebar.classList.add('hidden');
+                fab.classList.add('hidden');
+                document.getElementById('app-container').classList.remove('p-4', 'md:p-8', 'bg-gray-50');
+            } else {
+                // User is logged in
+                header.classList.remove('hidden');
+                sidebar.classList.remove('hidden');
+                fab.classList.remove('hidden');
+                document.getElementById('app-container').classList.add('p-4', 'md:p-8', 'bg-gray-50');
+                
+                renderSidebar();
+
+                // Update Header
+                document.getElementById('header-profile-pic').src = userProfile.picUrl || 'https.placehold.co/40x40/cccccc/333333?text=P';
+                document.getElementById('header-user-info').innerText = `${userName} (${userRegId})`;
+
+                let contentHtml = '';
+                switch(currentView) {
+                    case 'pending-tasks': contentHtml = renderPendingTasks(); break;
+                    case 'profile': contentHtml = renderProfileManagement(); break;
+                    case 'overview':
+                    default: contentHtml = renderOverviewAnnouncements(); break;
+                }
+                
+                container.innerHTML = `
+                    <h1 class="text-3xl font-extrabold text-gray-800 mb-2">${getFriendlyTitle(currentView)}</h1>
+                    <p class="text-gray-600 mb-8 font-medium">${getFriendlySubtitle(currentView)}</p>
+                    <div id="dashboard-content" class="p-0">
+                        ${contentHtml}
+                    </div>
+                `;
+            }
+        }
+        window.renderApp = renderApp;
+        
+        function renderSidebar() {
+            const navContainer = document.getElementById('sidebar-nav');
+            
+            const navItems = [
+                { id: 'overview', label: 'Dashboard', icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>` },
+                { id: 'pending-tasks', label: 'Pending Tasks', icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l-1.586-1.586a2 2 0 00-2.828 0L6 14m6-6l.01.01"></path></svg>` },
+            ];
+            
+            let navHtml = `
+                <h3 class="text-sm font-bold text-[#5d3a8e] uppercase mb-4 px-2 tracking-wider">Designer Menu</h3>
+                ${navItems.map(item => {
+                    const isActive = currentView === item.id;
+                    return `
+                        <button onclick="renderApp('${item.id}')" class="flex items-center w-full py-2 px-3 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition duration-150 group ${isActive ? 'bg-[#e7e0f2] text-[#5d3a8e] font-semibold' : ''}">
+                            <div class="h-5 w-5 mr-3 group-hover:text-[#5d3a8e] ${isActive ? 'text-[#5d3a8e]' : 'text-gray-500'}">
+                                ${item.icon}
+                            </div>
+                            ${item.label}
+                        </button>
+                    `;
+                }).join('')}
+                
+                <div class="pt-4 border-t border-gray-100 mt-4">
+                    <h3 class="text-sm font-bold text-gray-400 uppercase mb-2 px-2 tracking-wider">Settings</h3>
+                    <button onclick="renderApp('profile')" class="flex items-center w-full py-2 px-3 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition duration-150 group ${currentView === 'profile' ? 'bg-[#e7e0f2] text-[#5d3a8e] font-semibold' : ''}">
+                        <svg class="h-5 w-5 mr-3 group-hover:text-[#5d3a8e] ${currentView === 'profile' ? 'text-[#5d3a8e]' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        Profile Settings
+                    </button>
+                </div>
+            `;
+            navContainer.innerHTML = navHtml;
+        }
+
+        function renderLandingPage() {
+            return `
+                <div class="max-w-xl mx-auto p-8 bg-white shadow-2xl rounded-2xl border-t-8 border-[#5d3a8e] mt-20">
+                    <div class="flex flex-col items-center mb-6">
+                        <img src="https://play-lh.googleusercontent.com/8QQUZDWOC8RpSqVsw2apjdnLiHvyLc1vJBpOC0MNQcE3_-JHv3XtW1K5m6YmVA6I-A" alt="CUST Logo" class="h-16 w-16 mb-2">
+                        <h2 class="text-3xl font-extrabold text-gray-800 text-center">CAUSE Society Portal</h2>
+                        <p class="text-center text-gray-600 mt-2">Graphic Designer Login</p>
+                    </div>
+
+                    <div class="p-6 border border-gray-200 rounded-xl shadow-inner">
+                        <h3 class="text-xl font-semibold text-[#5d3a8e] mb-4 border-b pb-2">Login to Dashboard</h3>
+                        <form onsubmit="handleLogin(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="login-regId">Registration ID</label>
+                                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#9275B7] transition" id="login-regId" type="text" placeholder="GD-001" name="regId" required>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="login-password">Password</label>
+                                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#9275B7] transition" id="login-password" type="password" placeholder="password" name="password" required>
+                            </div>
+                            <button class="w-full btn-primary text-white font-bold py-2 rounded-lg shadow-md transition duration-150" type="submit">
+                                Login
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderOverviewAnnouncements() {
+            const pendingUploads = graphicDesignRequests.filter(r => r.status === 'Pending GD Upload');
+            const pendingRevisions = graphicDesignRequests.filter(r => r.status === 'Pending GD Revision');
+            
+            return `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Stat Cards -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-yellow-500 transition-all duration-300 hover:shadow-xl">
+                        <h3 class="text-xl font-bold text-yellow-600 mb-4 flex items-center">
+                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l-1.586-1.586a2 2 0 00-2.828 0L6 14m6-6l.01.01"></path></svg>
+                            Pending Uploads
+                        </h3>
+                        <p class="text-5xl font-extrabold text-gray-800">${pendingUploads.length}</p>
+                        <button onclick="renderApp('pending-tasks')" class="mt-4 text-sm font-semibold text-[#5d3a8e] hover:underline">View Tasks →</button>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-red-500 transition-all duration-300 hover:shadow-xl">
+                        <h3 class="text-xl font-bold text-red-600 mb-4 flex items-center">
+                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                            Pending Revisions
+                        </h3>
+                        <p class="text-5xl font-extrabold text-gray-800">${pendingRevisions.length}</p>
+                        <button onclick="renderApp('pending-tasks')" class="mt-4 text-sm font-semibold text-[#5d3a8e] hover:underline">View Tasks →</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderPendingTasks() {
+            if (graphicDesignRequests.length === 0) {
+                 return `<div class="bg-white p-6 rounded-xl shadow-lg"><p class="text-gray-500">No design tasks are currently assigned to you.</p></div>`;
+            }
+
+            const tasksHtml = graphicDesignRequests.map(req => {
+                let statusClass, borderColor, icon, actionBlock;
+
+                switch (req.status) {
+                    case 'Pending GD Upload':
+                        statusClass = 'status-pending';
+                        borderColor = 'border-yellow-500';
+                        icon = `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l-1.586-1.586a2 2 0 00-2.828 0L6 14m6-6l.01.01"></path></svg>`;
+                        actionBlock = `
+                            <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                                <p class="font-bold text-gray-700 mb-1">President's Instructions:</p>
+                                <p class="text-gray-600 text-sm italic">${req.instructions}</p>
+                            </div>
+                            <div class="flex justify-end mt-4">
+                                <button onclick="openUploadModal('${req.id}', '${req.eventTitle}')" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition">
+                                    Upload Design
+                                </button>
+                            </div>
+                        `;
+                        break;
+                    
+                    case 'Pending GD Revision':
+                        statusClass = 'status-rejected';
+                        borderColor = 'border-red-500';
+                        icon = `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>`;
+                        const lastFeedback = req.feedback[req.feedback.length - 1]?.message || 'No specific feedback.';
+                        actionBlock = `
+                            <div class="mt-4 p-4 bg-red-50 border border-red-300 rounded-lg">
+                                <p class="font-bold text-red-700 flex items-center mb-1">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                    Revision Feedback:
+                                </p>
+                                <p class="text-red-600 text-sm italic ml-2">${lastFeedback}</p>
+                            </div>
+                             <div class="flex justify-end mt-4">
+                                <button onclick="openUploadModal('${req.id}', '${req.eventTitle}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition">
+                                    Upload New Version
+                                </button>
+                            </div>
+                        `;
+                        break;
+                        
+                    case 'Pending President Review':
+                        statusClass = 'status-review';
+                        borderColor = 'border-blue-500';
+                        icon = `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+                        actionBlock = `
+                            <div class="mt-4">
+                                <p class="text-gray-600 font-medium">Your design has been submitted and is awaiting review by the President.</p>
+                                <img src="${req.imageUrl}" class="mt-3 rounded-lg w-full h-auto shadow-sm border">
+                            </div>
+                        `;
+                        break;
+                    
+                    default: // e.g., Pending Patron Review
+                        statusClass = 'status-approved';
+                        borderColor = 'border-green-500';
+                        icon = `<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>`;
+                        actionBlock = `
+                            <div class="mt-4">
+                                <p class="text-green-700 font-medium">This design was approved by the President and is moving forward.</p>
+                                <img src="${req.imageUrl}" class="mt-3 rounded-lg w-full h-auto shadow-sm border">
+                            </div>
+                        `;
+                }
+
+                return `
+                    <div class="p-5 bg-white rounded-xl shadow-lg border-l-4 ${borderColor} transition-all duration-300 hover:shadow-xl">
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="text-xl font-extrabold text-[#5d3a8e]">${req.eventTitle}</h4>
+                            <span class="event-status ${statusClass}">${icon} ${req.status}</span>
+                        </div>
+                        ${actionBlock}
+                    </div>
+                `;
+            }).join('');
+            
+            return `<div class="space-y-6">${tasksHtml}</div>`;
+        }
+        
+        function renderProfileManagement() {
+            const defaultPic = 'https://placehold.co/100x100/cccccc/333333?text=P';
+            
+            return `
+                <div class="bg-white p-8 rounded-xl shadow-lg border-t-4 border-[#5d3a8e] mb-8">
+                    <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-8 mb-6 border-b pb-4">
+                        <img src="${userProfile.picUrl || defaultPic}" onerror="this.onerror=null;this.src='${defaultPic}'" alt="Profile Pic" class="w-24 h-24 rounded-full object-cover border-4 border-[#5d3a8e] shadow-xl">
+                        <div class="text-center md:text-left">
+                            <p class="font-extrabold text-2xl text-[#5d3a8e]">${userName}</p>
+                            <p class="font-semibold text-md text-gray-700">Reg ID: ${userRegId}</p>
+                            <p class="text-sm text-gray-500">Role: Graphic Designer</p>
+                        </div>
+                    </div>
+
+                    
+                    <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">Update Profile Details</h3>
+                    <form onsubmit="handleProfileUpdate(event)" class="max-w-lg space-y-4">
+                        
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="phone">Phone Number</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] focus:border-[#5d3a8e] transition" id="phone" name="phone" type="tel" value="${userProfile.phone || ''}" placeholder="+92 300 xxxxxxx">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="address">Address</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] focus:border-[#5d3a8e] transition" id="address" name="address" type="text" value="${userProfile.address || ''}" placeholder="H. No. / Street / Town">
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="picUrl">Profile Picture URL</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] focus:border-[#5d3a8e] transition" id="picUrl" name="picUrl" type="url" value="${userProfile.picUrl || ''}" placeholder="https://placehold.co/100x100">
+                        </div>
+
+                        <button type="submit" class="btn-primary text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150">
+                            Save Profile Details
+                        </button>
+                    </form>
+                    
+                    <hr class="my-8 border-gray-200">
+                    
+                    
+                    <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">Change Password</h3>
+                    <form onsubmit="handlePasswordUpdate(event)" class="max-w-md">
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2" for="new-password">New Password</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] focus:border-[#5d3a8e] transition" id="new-password" name="newPassword" type="password" required minlength="6" placeholder="At least 6 characters">
+                        </div>
+                        <button type="submit" class="bg-[#9275B7] hover:bg-[#a68bc4] text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150">
+                            Update Password
+                        </button>
+                    </form>
+                </div>
+            `;
+        }
+
+
+        // Initialize the app on window load
+        window.onload = initApp;
+
+    </script>
+</body>
+</html>

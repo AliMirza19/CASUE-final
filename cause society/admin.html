@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Cause Society CUST</title>
+    <!-- Tailwind CSS CDN --><script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display.swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #ffffff; 
+        }
+        .btn-primary { 
+            background-color: #5d3a8e; 
+            border: none; 
+            transition: background-color 0.2s ease-in-out;
+        }
+        .btn-primary:hover { 
+            background-color: #4a2f72; 
+        }
+        .scroll-area { max-height: calc(100vh - 120px); overflow-y: auto; }
+        .event-status { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; }
+        .status-pending { background-color: #fcd34d; color: #92400e; }
+        .status-approved { background-color: #10b981; color: #ecfdf5; }
+        .status-rejected { background-color: #f87171; color: #fef2f2; }
+        .status-review { background-color: #3b82f6; color: #eff6ff; }
+        .status-active { background-color: #10b981; color: #ecfdf5; }
+        .status-upcoming { background-color: #c4b5fd; color: #4c1d95; }
+        .modal-overlay { background-color: rgba(0, 0, 0, 0.75); }
+
+        /* Custom scrollbar */
+        .scroll-area::-webkit-scrollbar { width: 8px; }
+        .scroll-area::-webkit-scrollbar-track { background: #e0e0e0; border-radius: 10px; }
+        .scroll-area::-webkit-scrollbar-thumb { background-color: #9275B7; border-radius: 10px; border: 2px solid #e0e0e0; }
+        .scroll-area::-webkit-scrollbar-thumb:hover { background-color: #5d3a8e; }
+        
+        /* Form focus styles */
+        input:focus, textarea:focus, select:focus {
+            border-color: #5d3a8e;
+            box-shadow: 0 0 0 2px rgba(93, 58, 142, 0.4);
+        }
+        
+        /* Modal Animation */
+        .modal-content {
+            transition: all 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Top Navigation Bar (Themed Purple) -->
+    <nav id="app-header" class="bg-[#5d3a8e] p-4 flex items-center justify-between shadow-lg z-10 hidden">
+        <div class="flex items-center">
+            <img src="https://play-lh.googleusercontent.com/8QQUZDWOC8RpSqVsw2apjdnLiHvyLc1vJBpOC0MNQcE3_-JHv3XtW1K5m6YmVA6I-A" alt="CUST Logo" class="h-10 w-10 mr-3 rounded-full bg-white p-1">
+            <span class="text-white text-xl font-extrabold">CAUSE Society</span>
+            <span class="text-white text-sm ml-2 hidden md:inline opacity-80">Admin Portal</span>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+            <!-- User Info and Profile Button -->
+            <span id="header-user-info" class="text-white text-md font-semibold hidden sm:inline"></span>
+            <button onclick="renderApp('profile')" class="relative text-white hover:opacity-80 transition duration-150">
+                <img id="header-profile-pic" src="https://placehold.co/40x40/cccccc/333333?text=P" alt="Profile" class="h-10 w-10 rounded-full object-cover border-2 border-white shadow-md">
+            </button>
+            <button onclick="handleLogout()" class="bg-[#9275B7] hover:bg-[#a68bc4] text-white font-semibold py-1 px-3 rounded-lg text-sm transition duration-150">Logout</button>
+        </div>
+    </nav>
+
+    <div class="flex flex-1">
+        
+        <!-- Sidebar Navigation (Fixed) -->
+        <aside id="app-sidebar" class="w-64 bg-white p-4 shadow-xl sticky top-0 h-screen overflow-y-auto z-0 hidden" style="padding-top: 1rem; border-right: 1px solid #e5e7eb;">
+            <nav class="space-y-2" id="sidebar-nav">
+                <!-- Sidebar content will be rendered by renderSidebar() -->
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main id="app-container" class="flex-1 p-4 md:p-8 bg-gray-50">
+            
+            <div id="message-box" class="fixed top-20 right-5 z-50 transition-transform duration-500 transform translate-x-full"></div>
+
+            <div id="main-content">
+                <!-- Content will be rendered here by renderApp function -->
+                <div class="max-w-xl mx-auto p-6 bg-white shadow-xl rounded-xl">
+                    <p class="text-center text-gray-600 mb-6">System is Loading...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    
+    <!-- Modal for Managing HOD Role -->
+    <div id="manage-hod-modal" class="hidden fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-8 modal-content transform transition-all duration-300 scale-95 opacity-0">
+            <h3 class="text-2xl font-bold mb-4 text-[#5d3a8e]">Manage HOD Role</h3>
+            <p class="mb-4 text-sm text-gray-700">Select a new faculty member to assign the HOD role to. The previous HOD will be reverted to a Faculty role.</p>
+            <form id="manage-hod-form" onsubmit="handleChangeHod(event)">
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-semibold mb-2" for="faculty-select">Select New HOD</label>
+                    <select class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" id="faculty-select" name="facultyId" required>
+                        <!-- Options will be loaded by JS -->
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeManageHodModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">
+                        Assign Role
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Floating Chat Button (UI Enhancement) -->
+    <button id="fab-chat" class="hidden fixed bottom-6 right-6 bg-[#5d3a8e] hover:bg-[#4a2f72] text-white p-4 rounded-full shadow-xl hover:shadow-2xl transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none z-40">
+        <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+    </button>
+
+    
+    <script>
+        // NO FIREBASE SCRIPT (MOCK DEMO MODE)
+
+        let userId = null;
+        let userName = '';
+        let userRegId = '';
+        let userProfile = {}; 
+        let isAuthReady = false;
+        let currentView = 'login'; // Start at login
+        
+        // --- Mock Data States ---
+        let allEventHistory = [];
+        let allFaculty = [];
+        let allTerms = [];
+        let systemRoles = {};
+        
+        // --- Utility Functions ---
+
+        function showMessage(message, type = 'success', duration = 4000) {
+            const box = document.getElementById('message-box');
+            if (!box) return;
+
+            const bgColor = type === 'error' ? 'bg-red-500' : type === 'warning' ? 'bg-yellow-500' : 'bg-green-500';
+            const html = `
+                <div class="${bgColor} text-white p-4 rounded-xl shadow-2xl mb-3 flex items-center">
+                    <span class="flex-grow">${message}</span>
+                    <button onclick="this.parentNode.remove()" class="ml-4 font-bold">&times;</button>
+                </div>
+            `;
+            box.insertAdjacentHTML('afterbegin', html);
+            box.classList.remove('translate-x-full');
+            box.classList.add('translate-x-0');
+
+            setTimeout(() => {
+                const elementToRemove = box.lastElementChild;
+                if (elementToRemove) elementToRemove.remove();
+                if (box.children.length === 0) {
+                    box.classList.remove('translate-x-0');
+                    box.classList.add('translate-x-full');
+                }
+            }, duration);
+        }
+        window.showMessage = showMessage;
+        
+        // --- UI Helper Functions ---
+        function getFriendlyTitle(view) {
+            const titles = {
+                'overview': 'Admin Dashboard',
+                'manage-terms': 'Manage Academic Terms',
+                'manage-roles': 'Manage Society Roles',
+                'view-history': 'View All Event History',
+                'profile': 'Profile Settings',
+                'login': 'Welcome, Admin',
+            };
+            return titles[view] || 'Dashboard';
+        }
+
+        function getFriendlySubtitle(view) {
+            const subtitles = {
+                'overview': `Welcome back, ${userName || 'Admin'}. System-wide overview.`,
+                'manage-terms': 'Create, activate, and manage all academic terms.',
+                'manage-roles': 'Assign key society roles like HOD.',
+                'view-history': 'View and filter all events from all terms.',
+                'profile': 'Update your personal details and change your password.',
+                'login': 'Log in to the CAUSE Society Admin Portal.',
+            };
+            return subtitles[view] || `Welcome, ${userName || 'Admin'}.`;
+        }
+
+        // --- Sample Data Injection ---
+        
+        function loadSampleData() {
+            // Define all faculty
+            if (allFaculty.length === 0) {
+                allFaculty = [
+                    { id: 'f1', name: 'Dr. Fatima Khan', role: 'Faculty', regId: 'FAC-001' },
+                    { id: 'f2', name: 'Engr. Saad Mahmood', role: 'Faculty', regId: 'FAC-002' },
+                    { id: 'f3', name: 'Dr. Aisha Rahman', role: 'HOD', regId: 'HOD-001' },
+                    { id: 'f4', name: 'Dr. Usman Ali', role: 'Patron', regId: 'PATRON-001' },
+                ];
+            }
+            
+            // Define system roles
+            systemRoles = {
+                hodId: 'f3', // Dr. Aisha Rahman
+                patronId: 'f4' // Dr. Usman Ali
+            };
+            
+            // Define terms
+            if (allTerms.length === 0) {
+                allTerms = [
+                    { id: 't1', name: 'Spring 2025', status: 'Completed' },
+                    { id: 't2', name: 'Summer 2025', status: 'Active' },
+                    { id: 't3', name: 'Fall 2025', status: 'Upcoming' },
+                ];
+            }
+            
+            // Define event history with terms
+            if (allEventHistory.length === 0) {
+                allEventHistory = [
+                    { 
+                        id: 'req_p1', 
+                        title: 'DevDay Conference 2025', 
+                        eventDate: '2025-07-10', 
+                        status: 'Pending Student Affairs', 
+                        term: 'Summer 2025',
+                        budget: '150,000'
+                    },
+                    { 
+                        id: 'req_p2', 
+                        title: 'Intro to Git/GitHub Workshop', 
+                        eventDate: '2025-06-15', 
+                        status: 'Final Approved',
+                        term: 'Summer 2025',
+                        budget: '5,000'
+                    },
+                    { 
+                        id: 'req_p3', 
+                        title: 'E-Gaming Competition', 
+                        eventDate: '2025-04-20', 
+                        status: 'Final Approved',
+                        term: 'Spring 2025',
+                        budget: '25,000'
+                    },
+                ];
+            }
+           
+            userProfile = {
+                phone: '+92 300 0000001',
+                address: 'CUST University Admin Block, Islamabad',
+                picUrl: 'https://placehold.co/100x100/b91c1c/ffffff?text=AD',
+            };
+        }
+
+
+        // --- Initialization and Mock Auth Setup ---
+
+        function initApp() {
+            isAuthReady = true;
+            loadSampleData(); 
+            renderApp('login'); // Start at login screen
+        }
+        
+        // --- Mock Authentication Handlers ---
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const regId = e.target.regId.value;
+            
+            // Log in as mock Admin
+            userId = 'mock-admin-001';
+            userName = 'Admin';
+            userRegId = regId || 'ADMIN-001'; 
+            
+            loadSampleData();
+            
+            showMessage(`Welcome back, ${userName}!`, 'success');
+            renderApp('overview'); // Navigate to dashboard
+        }
+        window.handleLogin = handleLogin;
+
+        function handleLogout() {
+            userId = null;
+            userName = '';
+            userRegId = '';
+            userProfile = {};
+            allEventHistory = [];
+            allFaculty = [];
+            allTerms = [];
+            systemRoles = {};
+            
+            showMessage("You have been successfully logged out.");
+            renderApp('login');
+        }
+        window.handleLogout = handleLogout;
+        
+        async function handlePasswordUpdate(e) {
+            e.preventDefault();
+            showMessage("Password successfully updated (Demo).", 'success');
+            e.target.reset(); 
+        }
+        window.handlePasswordUpdate = handlePasswordUpdate;
+
+        async function handleProfileUpdate(e) {
+            e.preventDefault();
+            const form = e.target;
+            
+            userProfile.phone = form.phone.value;
+            userProfile.address = form.address.value;
+            userProfile.picUrl = form.picUrl.value;
+            
+            showMessage("Profile details updated successfully (Demo).", 'success');
+            renderApp('profile'); 
+        }
+        window.handleProfileUpdate = handleProfileUpdate;
+
+
+        // --- Admin Specific Logic (Mock) ---
+        
+        window.handleCreateTerm = function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const termName = form.termName.value;
+            const termStatus = form.termStatus.value;
+            
+            // Deactivate old active term if new one is active
+            if (termStatus === 'Active') {
+                allTerms.forEach(t => { if (t.status === 'Active') t.status = 'Completed'; });
+            }
+            
+            const newTerm = {
+                id: 't' + (allTerms.length + 1),
+                name: termName,
+                status: termStatus
+            };
+            
+            allTerms.push(newTerm);
+            showMessage(`Term "${termName}" created successfully (Demo).`, 'success');
+            form.reset();
+            renderApp('manage-terms');
+        }
+        
+        window.openManageHodModal = function() {
+            const selectEl = document.getElementById('faculty-select');
+            // Populate dropdown with faculty who are NOT already HOD or Patron
+            selectEl.innerHTML = allFaculty
+                .filter(f => f.id !== systemRoles.hodId && f.id !== systemRoles.patronId)
+                .map(f => `<option value="${f.id}">${f.name} (${f.regId})</option>`)
+                .join('');
+            
+            const modal = document.getElementById('manage-hod-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.querySelector('.modal-content').classList.remove('scale-95', 'opacity-0');
+                modal.querySelector('.modal-content').classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+        
+        window.closeManageHodModal = function() {
+            const modal = document.getElementById('manage-hod-modal');
+            modal.querySelector('.modal-content').classList.remove('scale-100', 'opacity-100');
+            modal.querySelector('.modal-content').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300); 
+        }
+        
+        window.handleChangeHod = function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const newHodId = form.facultyId.value;
+            
+            // Find old HOD and revert role
+            const oldHodIndex = allFaculty.findIndex(f => f.id === systemRoles.hodId);
+            if (oldHodIndex > -1) {
+                allFaculty[oldHodIndex].role = 'Faculty';
+            }
+            
+            // Find new HOD and assign role
+            const newHodIndex = allFaculty.findIndex(f => f.id === newHodId);
+            const newHodName = allFaculty[newHodIndex].name;
+            allFaculty[newHodIndex].role = 'HOD';
+            
+            // Update system role
+            systemRoles.hodId = newHodId;
+            
+            showMessage(`Role updated. ${newHodName} is now the HOD (Demo).`, 'success');
+            closeManageHodModal();
+            renderApp('manage-roles');
+        }
+
+        // --- Rendering Functions ---
+
+        function renderApp(view = 'overview') {
+            const container = document.getElementById('main-content');
+            const header = document.getElementById('app-header');
+            const sidebar = document.getElementById('app-sidebar');
+            const fab = document.getElementById('fab-chat');
+            currentView = view;
+
+            if (!isAuthReady) {
+                container.innerHTML = `<p class="text-center text-gray-600">Waiting for Authentication...</p>`;
+                return;
+            }
+
+            if (!userId) {
+                // User is logged out
+                container.innerHTML = renderLandingPage();
+                header.classList.add('hidden');
+                sidebar.classList.add('hidden');
+                fab.classList.add('hidden');
+                document.getElementById('app-container').classList.remove('p-4', 'md:p-8', 'bg-gray-50');
+            } else {
+                // User is logged in
+                header.classList.remove('hidden');
+                sidebar.classList.remove('hidden');
+                fab.classList.remove('hidden');
+                document.getElementById('app-container').classList.add('p-4', 'md:p-8', 'bg-gray-50');
+                
+                renderSidebar();
+
+                // Update Header
+                document.getElementById('header-profile-pic').src = userProfile.picUrl || 'https.placehold.co/40x40/cccccc/333333?text=P';
+                document.getElementById('header-user-info').innerText = `${userName} (${userRegId})`;
+
+                let contentHtml = '';
+                switch(currentView) {
+                    case 'manage-terms': contentHtml = renderManageTerms(); break;
+                    case 'manage-roles': contentHtml = renderManageRoles(); break;
+                    case 'view-history': contentHtml = renderViewEventHistory(); break;
+                    case 'profile': contentHtml = renderProfileManagement(); break;
+                    case 'overview':
+                    default: contentHtml = renderOverviewAnnouncements(); break;
+                }
+                
+                container.innerHTML = `
+                    <h1 class="text-3xl font-extrabold text-gray-800 mb-2">${getFriendlyTitle(currentView)}</h1>
+                    <p class="text-gray-600 mb-8 font-medium">${getFriendlySubtitle(currentView)}</p>
+                    <div id="dashboard-content" class="p-0">
+                        ${contentHtml}
+                    </div>
+                `;
+            }
+        }
+        window.renderApp = renderApp;
+        
+        function renderSidebar() {
+            const navContainer = document.getElementById('sidebar-nav');
+            
+            const navItems = [
+                { id: 'overview', label: 'Dashboard', icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>` },
+                { id: 'manage-terms', label: 'Manage Terms', icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>` },
+                { id: 'manage-roles', label: 'Manage Roles', icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-2.37M16 13a4 4 0 100-8 4 4 0 000 8zM7 13a4 4 0 100-8 4 4 0 000 8zM2 20v-2a3 3 0 015.356-2.37M14 13a4 4 0 100-8 4 4 0 000 8z"></path></svg>` },
+                { id: 'view-history', label: 'View Event History', icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v11.494m0 0l-5-5m5 5l5-5M3 10h18M3 14h18"></path></svg>` },
+            ];
+            
+            let navHtml = `
+                <h3 class="text-sm font-bold text-[#5d3a8e] uppercase mb-4 px-2 tracking-wider">Admin Menu</h3>
+                ${navItems.map(item => {
+                    const isActive = currentView === item.id;
+                    return `
+                        <button onclick="renderApp('${item.id}')" class="flex items-center w-full py-2 px-3 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition duration-150 group ${isActive ? 'bg-[#e7e0f2] text-[#5d3a8e] font-semibold' : ''}">
+                            <div class="h-5 w-5 mr-3 group-hover:text-[#5d3a8e] ${isActive ? 'text-[#5d3a8e]' : 'text-gray-500'}">
+                                ${item.icon}
+                            </div>
+                            ${item.label}
+                        </button>
+                    `;
+                }).join('')}
+                
+                <div class="pt-4 border-t border-gray-100 mt-4">
+                    <h3 class="text-sm font-bold text-gray-400 uppercase mb-2 px-2 tracking-wider">Settings</h3>
+                    <button onclick="renderApp('profile')" class="flex items-center w-full py-2 px-3 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition duration-150 group ${currentView === 'profile' ? 'bg-[#e7e0f2] text-[#5d3a8e] font-semibold' : ''}">
+                        <svg class="h-5 w-5 mr-3 group-hover:text-[#5d3a8e] ${currentView === 'profile' ? 'text-[#5d3a8e]' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        Profile Settings
+                    </button>
+                </div>
+            `;
+            navContainer.innerHTML = navHtml;
+        }
+
+        function renderLandingPage() {
+            return `
+                <div class="max-w-xl mx-auto p-8 bg-white shadow-2xl rounded-2xl border-t-8 border-[#5d3a8e] mt-20">
+                    <div class="flex flex-col items-center mb-6">
+                        <img src="https://play-lh.googleusercontent.com/8QQUZDWOC8RpSqVsw2apjdnLiHvyLc1vJBpOC0MNQcE3_-JHv3XtW1K5m6YmVA6I-A" alt="CUST Logo" class="h-16 w-16 mb-2">
+                        <h2 class="text-3xl font-extrabold text-gray-800 text-center">CAUSE Society Portal</h2>
+                        <p class="text-center text-gray-600 mt-2">Admin Login</p>
+                    </div>
+
+                    <div class="p-6 border border-gray-200 rounded-xl shadow-inner">
+                        <h3 class="text-xl font-semibold text-[#5d3a8e] mb-4 border-b pb-2">Login to Dashboard</h3>
+                        <form onsubmit="handleLogin(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="login-regId">Registration ID</label>
+                                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#9275B7] transition" id="login-regId" type="text" placeholder="ADMIN-001" name="regId" required>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="login-password">Password</label>
+                                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#9275B7] transition" id="login-password" type="password" placeholder="password" name="password" required>
+                            </div>
+                            <button class="w-full btn-primary text-white font-bold py-2 rounded-lg shadow-md transition duration-150" type="submit">
+                                Login
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderOverviewAnnouncements() {
+            const currentHod = allFaculty.find(f => f.id === systemRoles.hodId) || { name: 'N/A' };
+            const currentPatron = allFaculty.find(f => f.id === systemRoles.patronId) || { name: 'N/A' };
+            
+            return `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    <!-- Stat Cards -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-500 transition-all duration-300 hover:shadow-xl">
+                        <h3 class="text-xl font-bold text-blue-600 mb-4 flex items-center">
+                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            Total Terms
+                        </h3>
+                        <p class="text-5xl font-extrabold text-gray-800">${allTerms.length}</p>
+                        <button onclick="renderApp('manage-terms')" class="mt-4 text-sm font-semibold text-[#5d3a8e] hover:underline">Manage Terms →</button>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-purple-600 transition-all duration-300 hover:shadow-xl">
+                        <h3 class="text-xl font-bold text-purple-700 mb-4 flex items-center">
+                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-2.37M16 13a4 4 0 100-8 4 4 0 000 8z"></path></svg>
+                            Current HOD
+                        </h3>
+                        <p class="text-3xl font-extrabold text-gray-800">${currentHod.name}</p>
+                        <button onclick="renderApp('manage-roles')" class="mt-4 text-sm font-semibold text-[#5d3a8e] hover:underline">Manage Roles →</button>
+                    </div>
+                    <!-- Announcements -->
+                    <div class="md:col-span-3 mt-6">
+                        <h2 class="text-2xl font-bold mb-6 text-gray-800">Full Event Log (All Terms)</h2>
+                        ${renderViewEventHistory(true)} <!-- Render a preview of history -->
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderManageTerms() {
+            const termsHtml = allTerms.map(term => {
+                let statusClass = term.status === 'Active' ? 'status-active' : 'status-upcoming';
+                if (term.status === 'Completed') statusClass = 'status-rejected'; // Using rejected style for completed
+                
+                return `
+                    <div class="p-4 bg-white rounded-xl shadow-lg border-l-4 ${statusClass.replace('status-', 'border-')}-500 flex justify-between items-center">
+                        <div>
+                            <h4 class="text-xl font-extrabold text-[#5d3a8e]">${term.name}</h4>
+                        </div>
+                        <span class="event-status ${statusClass}">${term.status}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            return `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Create New Term -->
+                    <div class="bg-white p-8 rounded-xl shadow-lg border-t-4 border-[#5d3a8e]">
+                         <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">Create New Term</h3>
+                        <form onsubmit="handleCreateTerm(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-gray-700 font-semibold mb-2" for="termName">Term Name</label>
+                                <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" id="termName" name="termName" type="text" placeholder="e.g., Spring 2026" required>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 font-semibold mb-2" for="termStatus">Status</label>
+                                <select class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" id="termStatus" name="termStatus" required>
+                                    <option value="Upcoming">Upcoming</option>
+                                    <option value="Active">Active</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn-primary text-white font-bold py-2 px-4 rounded-lg shadow-md transition">
+                                Create Term
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <!-- Existing Terms -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                         <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">Existing Terms</h3>
+                         <div class="space-y-4">
+                            ${termsHtml}
+                         </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderManageRoles() {
+            const currentHod = allFaculty.find(f => f.id === systemRoles.hodId) || { name: 'N/A', regId: 'N/A', picUrl: '' };
+            const currentPatron = allFaculty.find(f => f.id === systemRoles.patronId) || { name: 'N/A', regId: 'N/A', picUrl: '' };
+            
+            return `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Manage HOD -->
+                    <div class="p-6 bg-white rounded-xl shadow-lg border-t-4 border-[#5d3a8e]">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Current HOD</h3>
+                        <div class="flex items-center space-x-4">
+                            <img src="${currentHod.picUrl || 'https://placehold.co/100x100/1e3a8a/ffffff?text=HOD'}" alt="HOD Pic" class="w-20 h-20 rounded-full object-cover border-4 border-[#5d3a8e]">
+                            <div>
+                                <p class="font-extrabold text-2xl text-[#5d3a8e]">${currentHod.name}</p>
+                                <p class="font-semibold text-md text-gray-700">Reg ID: ${currentHod.regId}</p>
+                            </div>
+                        </div>
+                        <button onclick="openManageHodModal()" class="mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition">
+                            Change HOD
+                        </button>
+                    </div>
+                    
+                </div>
+            `;
+        }
+
+        function renderViewEventHistory(preview = false) {
+             if (allEventHistory.length === 0) {
+                 return `<div class="bg-white p-6 rounded-xl shadow-lg"><p class="text-gray-500">No events found in history.</p></div>`;
+            }
+            
+            // Allow filtering by term
+            const termsForFilter = [...allTerms].reverse(); // Show newest terms first
+            let filteredEvents = [...allEventHistory];
+            
+            if (!preview) { // Only show filter UI on the full page
+                const filterTerm = document.getElementById('term-filter')?.value;
+                if (filterTerm) {
+                    filteredEvents = allEventHistory.filter(e => e.term === filterTerm);
+                }
+            }
+            
+            const historyHtml = (preview ? filteredEvents.slice(0, 3) : filteredEvents).map(event => {
+                let statusClass = 'status-pending';
+                if (event.status.includes('Approved')) statusClass = 'status-approved';
+                if (event.status.includes('HOD')) statusClass = 'status-pending';
+                if (event.status.includes('Affairs')) statusClass = 'status-review';
+                
+                return `
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 border-b">${event.title}</td>
+                        <td class="p-3 border-b">${event.term || 'N/A'}</td>
+                        <td class="p-3 border-b">${event.eventDate}</td>
+                        <td class="p-3 border-b">
+                            <span class="event-status ${statusClass}">${event.status}</span>
+                        </td>
+                         <td class="p-3 border-b text-sm font-semibold">PKR ${event.budget || 'N/A'}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            return `
+                ${!preview ? `
+                <div class="mb-4 max-w-xs">
+                    <label class="block text-gray-700 font-semibold mb-2" for="term-filter">Filter by Term</label>
+                    <select class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" id="term-filter" onchange="renderApp('view-history')">
+                        <option value="">All Terms</option>
+                        ${termsForFilter.map(t => `<option value="${t.name}">${t.name}</option>`).join('')}
+                    </select>
+                </div>
+                ` : ''}
+                <div class="bg-white p-6 rounded-xl shadow-lg overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="p-3 font-semibold text-gray-600">Event Title</th>
+                                <th class="p-3 font-semibold text-gray-600">Term</th>
+                                <th class="p-3 font-semibold text-gray-600">Date</th>
+                                <th class="p-3 font-semibold text-gray-600">Status</th>
+                                <th class="p-3 font-semibold text-gray-600">Budget</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${historyHtml}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        function renderProfileManagement() {
+            const defaultPic = 'https://placehold.co/100x100/cccccc/333333?text=P';
+            
+            return `
+                <div class="bg-white p-8 rounded-xl shadow-lg border-t-4 border-[#5d3a8e] mb-8">
+                    <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-8 mb-6 border-b pb-4">
+                        <img src="${userProfile.picUrl || defaultPic}" onerror="this.onerror=null;this.src='${defaultPic}'" alt="Profile Pic" class="w-24 h-24 rounded-full object-cover border-4 border-[#5d3a8e] shadow-xl">
+                        <div class="text-center md:text-left">
+                            <p class="font-extrabold text-2xl text-[#5d3a8e]">${userName}</p>
+                            <p class="font-semibold text-md text-gray-700">Reg ID: ${userRegId}</p>
+                            <p class="text-sm text-gray-500">Role: Admin</p>
+                        </div>
+                    </div>
+
+                    
+                    <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">Update Profile Details</h3>
+                    <form onsubmit="handleProfileUpdate(event)" class="max-w-lg space-y-4">
+                        
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="phone">Phone Number</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] focus:border-[#5d3a8e] transition" id="phone" name="phone" type="tel" value="${userProfile.phone || ''}" placeholder="+92 300 xxxxxxx">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="address">Address</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] focus:border-[#5d3a8e] transition" id="address" name="address" type="text" value="${userProfile.address || ''}" placeholder="H. No. / Street / Town">
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="picUrl">Profile Picture URL</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] focus:border-[#5d3a8e] transition" id="picUrl" name="picUrl" type="url" value="${userProfile.picUrl || ''}" placeholder="https://placehold.co/100x100">
+                        </div>
+
+                        <button type="submit" class="btn-primary text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150">
+                            Save Profile Details
+                        </button>
+                    </form>
+                    
+                    <hr class="my-8 border-gray-200">
+                    
+                    
+                    <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">Change Password</h3>
+                    <form onsubmit="handlePasswordUpdate(event)" class="max-w-md">
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2" for="new-password">New Password</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] focus:border-[#5d3a8e] transition" id="new-password" name="newPassword" type="password" required minlength="6" placeholder="At least 6 characters">
+                        </div>
+                        <button type="submit" class="bg-[#9275B7] hover:bg-[#a68bc4] text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150">
+                            Update Password
+                        </button>
+                    </form>
+                </div>
+            `;
+        }
+
+
+        // Initialize the app on window load
+        window.onload = initApp;
+
+    </script>
+</body>
+</html>

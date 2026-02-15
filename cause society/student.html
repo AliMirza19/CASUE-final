@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - Cause Society CUST</title>
+    <!-- Tailwind CSS CDN --><script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #ffffff; 
+        }
+        .btn-primary { 
+            background-color: #5d3a8e; 
+            border: none; 
+            transition: background-color 0.2s ease-in-out;
+        }
+        .btn-primary:hover { 
+            background-color: #4a2f72; 
+        }
+        .scroll-area { max-height: calc(100vh - 120px); overflow-y: auto; }
+        .event-status { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 0.8rem; font-weight: 600; }
+        .status-pending { background-color: #fcd3a4; color: #92400e; }
+        .status-approved { background-color: #10b981; color: #ecfdf5; }
+        .status-rejected { background-color: #f87171; color: #fef2f2; }
+        .status-review { background-color: #3b82f6; color: #eff6ff; }
+        .status-forward { background-color: #a855f7; color: #f3e8ff; } 
+        .modal-overlay { background-color: rgba(0, 0, 0, 0.75); }
+
+        /* Custom scrollbar */
+        .scroll-area::-webkit-scrollbar { width: 8px; }
+        .scroll-area::-webkit-scrollbar-track { background: #e0e0e0; border-radius: 10px; }
+        .scroll-area::-webkit-scrollbar-thumb { background-color: #9275B7; border-radius: 10px; border: 2px solid #e0e0e0; }
+        .scroll-area::-webkit-scrollbar-thumb:hover { background-color: #5d3a8e; }
+        
+        /* Form focus styles */
+        input:focus, textarea:focus, select:focus {
+            border-color: #5d3a8e;
+            box-shadow: 0 0 0 2px rgba(93, 58, 142, 0.4);
+        }
+        
+        /* Modal Animation */
+        .modal-content {
+            transition: all 0.3s ease-out;
+        }
+
+        /* Workflow Stepper Animation */
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(146, 117, 183, 0.7); }
+            50% { box-shadow: 0 0 0 8px rgba(146, 117, 183, 0); }
+        }
+        .step-active .dot {
+            animation: pulse-dot 2s infinite;
+        }
+
+        /* AI Chat Widget Styles */
+        #ai-chat-window {
+            transition: all 0.3s ease-in-out;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95);
+            position: fixed;
+            top: 100px;
+            right: 50px;
+        }
+        #ai-chat-window.open {
+            opacity: 1;
+            pointer-events: all;
+            transform: scale(1);
+        }
+        .chat-msg {
+            max-width: 85%;
+            padding: 8px 12px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        .chat-msg.ai {
+            background-color: #f3f4f6;
+            color: #1f2937;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+        .chat-msg.user {
+            background-color: #5d3a8e;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Top Navigation Bar (Themed Purple) -->
+    <nav id="app-header" class="bg-[#5d3a8e] p-4 flex items-center justify-between shadow-lg z-10 hidden">
+        <div class="flex items-center">
+            <img src="https://play-lh.googleusercontent.com/8QQUZDWOC8RpSqVsw2apjdnLiHvyLc1vJBpOC0MNQcE3_-JHv3XtW1K5m6YmVA6I-A" alt="CUST Logo" class="h-10 w-10 mr-3 rounded-full bg-white p-1">
+            <span class="text-white text-xl font-extrabold">CAUSE Society</span>
+            <span class="text-white text-sm ml-2 hidden md:inline opacity-80">Software Engineering Dept.</span>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+            <!-- User Info and Profile Button -->
+            <span id="header-user-info" class="text-white text-md font-semibold hidden sm:inline"></span>
+            <button onclick="renderApp('profile')" class="relative text-white hover:opacity-80 transition duration-150">
+                <img id="header-profile-pic" src="https://placehold.co/40x40/cccccc/333333?text=P" alt="Profile" class="h-10 w-10 rounded-full object-cover border-2 border-white shadow-md">
+            </button>
+            <button onclick="handleLogout()" class="bg-[#9275B7] hover:bg-[#a68bc4] text-white font-semibold py-1 px-3 rounded-lg text-sm transition duration-150">Logout</button>
+        </div>
+    </nav>
+
+    <div class="flex flex-1">
+        
+        <!-- Sidebar Navigation (Fixed) -->
+        <aside id="app-sidebar" class="w-64 bg-white p-4 shadow-xl sticky top-0 h-screen overflow-y-auto z-0 hidden" style="padding-top: 1rem; border-right: 1px solid #e5e7eb;">
+            <nav class="space-y-2" id="sidebar-nav">
+                <!-- Sidebar content will be rendered by renderSidebar() -->
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main id="app-container" class="flex-1 p-4 md:p-8 bg-gray-50">
+            
+            <div id="message-box" class="fixed top-20 right-5 z-50 transition-transform duration-500 transform translate-x-full"></div>
+
+            <div id="main-content">
+                <!-- Content will be rendered here by renderApp function -->
+                <div class="max-w-xl mx-auto p-6 bg-white shadow-xl rounded-xl">
+                    <p class="text-center text-gray-600 mb-6">System is Loading...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    
+    <!-- Modal for Event Revision -->
+    <div id="revision-modal" class="hidden fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg p-8 modal-content transform transition-all duration-300 scale-95 opacity-0">
+            <h3 class="text-2xl font-bold mb-4 text-red-600">Event Revision Required</h3>
+            <p id="revision-feedback" class="mb-4 text-sm text-gray-700 p-3 bg-red-100 rounded-lg"></p>
+            <form id="revision-form" onsubmit="handleEventRevisionSubmission(event)">
+                <input type="hidden" name="eventId" id="revision-eventId">
+                <div class="mb-4">
+                    <label class="block text-gray-700 font-semibold mb-2" for="revision-description">Revised Description</label>
+                    <textarea class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition duration-200" id="revision-description" name="description" rows="4" required></textarea>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeRevisionModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
+                        Submit New Version
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- AI Chat Widget -->
+    <div id="ai-chat-window" class="fixed top-24 left-6 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col z-40 overflow-hidden" style="height: 400px;">
+        <div class="bg-[#5d3a8e] p-3 text-white flex justify-between items-center">
+            <div class="flex items-center">
+                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                <span class="font-bold text-sm">CAUSE Society AI Agent</span>
+            </div>
+            <button onclick="toggleChat('ai-chat-window')" class="text-white hover:text-gray-200">&times;</button>
+        </div>
+        <div id="chat-messages" class="flex-1 p-4 overflow-y-auto flex flex-col bg-gray-50">
+            <div class="chat-msg ai">Hello! I am your society assistant. Ask me about events, how to apply, or check election status!</div>
+        </div>
+        <form onsubmit="handleChatSubmit(event)" class="p-3 border-t bg-white flex">
+            <input type="text" id="chat-input" class="flex-1 p-2 text-sm border border-gray-300 rounded-l-lg focus:outline-none focus:ring-1 focus:ring-[#5d3a8e]" placeholder="Type a question..." required autocomplete="off">
+            <button type="submit" class="bg-[#5d3a8e] hover:bg-[#4a2f72] text-white px-3 rounded-r-lg">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            </button>
+        </form>
+    </div>
+
+    <!-- Floating Chat Button -->
+    <button id="fab-chat" onclick="toggleChat('ai-chat-window')" class="fixed bottom-6 right-6 bg-[#5d3a8e] hover:bg-[#4a2f72] text-white p-4 rounded-full shadow-xl hover:shadow-2xl transition duration-200 ease-in-out transform hover:scale-110 focus:outline-none z-40">
+        <!-- AI Robot Icon -->
+        <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+        </svg>
+    </button>
+
+    
+    <script>
+        // NO FIREBASE SCRIPT (MOCK DEMO MODE)
+
+        let userId = null;
+        let userName = '';
+        let userRegId = '';
+        let userProfile = {}; 
+        let isAuthReady = false;
+        let currentView = 'login'; // Start at login
+        
+        // --- Mock Data States ---
+        let userRequests = [];
+        let publicPosts = [];
+        let publicEvents = [];
+        let facultyList = [];
+        let presidentialCandidates = []; 
+        let allStudents = [];
+        let organizersList = []; 
+
+        // --- Election State (Mocked) ---
+        let currentElectionPhase = 'Cabinet_Submission'; 
+        let hasUserVoted = false; 
+        
+        // --- Utility Functions ---
+
+        function showMessage(message, type = 'success', duration = 4000) {
+            const box = document.getElementById('message-box');
+            if (!box) return;
+
+            const bgColor = type === 'error' ? 'bg-red-500' : type === 'warning' ? 'bg-yellow-500' : 'bg-green-500';
+            const html = `
+                <div class="${bgColor} text-white p-4 rounded-xl shadow-2xl mb-3 flex items-center">
+                    <span class="flex-grow">${message}</span>
+                    <button onclick="this.parentNode.remove()" class="ml-4 font-bold">&times;</button>
+                </div>
+            `;
+            box.insertAdjacentHTML('afterbegin', html);
+            box.classList.remove('translate-x-full');
+            box.classList.add('translate-x-0');
+
+            setTimeout(() => {
+                const elementToRemove = box.lastElementChild;
+                if (elementToRemove) elementToRemove.remove();
+                if (box.children.length === 0) {
+                    box.classList.remove('translate-x-0');
+                    box.classList.add('translate-x-full');
+                }
+            }, duration);
+        }
+        window.showMessage = showMessage;
+        
+        function escapeHtmlAttribute(str) {
+            if (!str) return '';
+            return String(str).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
+        }
+        
+        // --- AI Chat Logic ---
+        window.toggleChat = function(windowId) {
+            const chatWindow = document.getElementById(windowId);
+            chatWindow.classList.toggle('open');
+            if (chatWindow.classList.contains('open')) {
+                setTimeout(() => chatWindow.querySelector('input').focus(), 100);
+            }
+        }
+        window.toggleChat = toggleChat;
+
+        window.handleChatSubmit = function(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            addChatMessageToWindow(message, 'user', 'chat-messages');
+            input.value = '';
+
+            setTimeout(() => {
+                const response = generateAIResponse(message);
+                addChatMessageToWindow(response, 'ai', 'chat-messages');
+            }, 600);
+        }
+        window.handleChatSubmit = handleChatSubmit;
+
+        function addChatMessageToWindow(text, sender, containerId) {
+            const chatContainer = document.getElementById(containerId);
+            if (!chatContainer) return;
+            const div = document.createElement('div');
+            div.className = `chat-msg ${sender}`;
+            
+            div.innerText = text;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function generateAIResponse(query) {
+            const q = query.toLowerCase();
+
+            if (q.includes('hello') || q.includes('hi') || q.includes('salam')) {
+                return "Wa alaikum assalam! How can I help you today?";
+            }
+            if (q.includes('event') && (q.includes('upcoming') || q.includes('list'))) {
+                if (publicEvents.length === 0) return "There are no upcoming events scheduled right now.";
+                const titles = publicEvents.map(e => e.title).join(', ');
+                return `Upcoming events are: ${titles}. Check the 'Events & Activities' tab for details.`;
+            }
+            if (q.includes('submit') || q.includes('apply') || q.includes('request')) {
+                return "You can submit a new event request by going to the 'Authorization Form' tab in the sidebar.";
+            }
+            if (q.includes('status') || q.includes('track')) {
+                return "You can track the status of your submitted events in the 'Track My Submissions' section.";
+            }
+            if (q.includes('volunteer')) {
+                return "We always need volunteers! Click 'Join as Volunteer' in the sidebar to register.";
+            }
+            if (q.includes('president') || q.includes('election')) {
+                return "The Presidential Elections are currently in the 'Cabinet Submission' phase. Check the Elections tab.";
+            }
+            if (q.includes('who are you')) {
+                return "I am the CAUSE Society AI Agent, here to help you navigate the dashboard.";
+            }
+
+            return "I'm not sure about that. Try asking about events, elections, or how to submit a request.";
+        }
+        
+        // --- UI Helper Functions ---
+        function getFriendlyTitle(view) {
+            const titles = {
+                'overview': 'Dashboard (Overview)',
+                'view-events': 'Events & Activities',
+                'request-event': 'Authorization Form',
+                'status': 'Track My Submissions',
+                'volunteer': 'Join as Volunteer',
+                'elections': 'Presidential Elections',
+                'profile': 'Profile Settings',
+                'login': 'Welcome',
+            };
+            return titles[view] || 'Dashboard';
+        }
+
+        function getFriendlySubtitle(view) {
+            const subtitles = {
+                'overview': `Welcome back, ${userName || 'Student'}. Here's what's happening.`,
+                'view-events': 'Browse all upcoming and past society events.',
+                'request-event': 'Fill out the official authorization form for new activities.',
+                'status': 'Check the status and feedback on your submissions.',
+                'volunteer': 'Join the volunteer team and make a difference.',
+                'elections': 'Participate in the society leadership elections.',
+                'profile': 'Update your personal details and change your password.',
+                'login': 'Log in to the CAUSE Society Portal.',
+            };
+            return subtitles[view] || `Welcome, ${userName || 'Student'}.`;
+        }
+
+        // --- Sample Data Injection ---
+        
+        function loadSampleData(regId) {
+            facultyList = [
+                { uid: 'faculty_f1', name: 'Dr. Fatima Khan', dept: 'Software Engineering' },
+                { uid: 'faculty_m1', name: 'Engr. Saad Mahmood', dept: 'Computer Science' },
+                { uid: 'faculty_m2', name: 'Ms. Ayesha Siddiqui', dept: 'Software Engineering' },
+            ];
+
+            publicPosts = [
+                { id: 'p1', title: 'Welcome to Fall Term 2025!', description: 'The Cause Society is excited to welcome new and returning students. Get ready for an action-packed term with new events and opportunities.', author: 'President Adil Saleem', createdAt: new Date().toISOString(), isPublished: true, imageUrl: 'https://placehold.co/400x200/9275B7/ffffff?text=Welcome+Post' },
+                { id: 'p2', title: 'Elections: Candidate Profile Submission', description: 'Finalized candidates must now submit their public profile to the Patron.', author: 'Patron Dr. Usman Ali', createdAt: new Date(Date.now() - 86400000).toISOString(), isPublished: true, imageUrl: null },
+            ];
+
+            publicEvents = [
+                { id: 'e1', title: 'Annual Code Marathon 2025', description: 'A 24-hour non-stop coding challenge focusing on algorithmic problem-solving. Join us!', eventDate: '2025-11-30', eventTime: '09:00', venue: 'CS Labs 1 & 2', facultyMentorId: 'faculty_f1', status: 'Final Approved' },
+                { id: 'e2', title: 'Tech Talk: Future of AI', description: 'A seminar featuring external industry expert Mr. Zeeshan Tariq on the ethical implications of Generative AI.', eventDate: '2025-12-15', eventTime: '14:00', venue: 'Auditorium A', facultyMentorId: 'faculty_m2', status: 'Final Approved' },
+            ];
+            
+             presidentialCandidates = [
+                { id: 'cand_1', name: 'Zainab Qureshi', regId: 'SE-2022-005', slogan: 'For a vibrant and inclusive society.', isNominated: true, profileSubmitted: false, picUrl: 'https://placehold.co/60x60/f87171/ffffff?text=Z', vision: 'N/A', experience: 'N/A', social: 'N/A', vp_name: 'N/A' },
+                { id: 'cand_2', name: 'Ali Hamza', regId: 'SE-2021-120', slogan: 'Bridging the gap between students and faculty.', isNominated: true, profileSubmitted: false, picUrl: 'https://placehold.co/60x60/3b82f6/ffffff?text=A', vision: 'N/A', experience: 'N/A', social: 'N/A', vp_name: 'N/A' },
+                { id: 'mock-user-123', name: 'Student Uzair Shah', regId: 'SE-2023-100', slogan: 'My Slogan', isNominated: true, profileSubmitted: false, picUrl: 'https://placehold.co/100x100/9275B7/ffffff?text=US', vision: 'N/A', experience: 'N/A', social: 'N/A', vp_name: 'N/A' },
+            ];
+
+            // Student Pool Data for Search (Mock) --- MUST BE RE-INITIALIZED HERE
+            allStudents = [
+                { regId: 'SE-2023-100', name: 'Student Uzair Shah' },
+                { regId: 'SE-2022-005', name: 'Zainab Qureshi' },
+                { regId: 'SE-2021-120', name: 'Ali Hamza' },
+                { regId: 'SE-2023-010', name: 'Sara Khan' },
+                { regId: 'SE-2024-050', name: 'Fatima Jilani' }
+            ];
+
+            if (userRequests.length === 0) {
+                 userRequests.push(
+                    { id: 'req_mock_1', title: 'Gaming Fiesta 2025', description: 'Sample: A departmental gaming tournament for CS/SE students. We need 10 PCs and projector access.', eventDate: '2025-12-05', eventTime: '11:00', venue: 'Library Hall', currentVersion: 2, status: 'Final Approved', requestedBy: userId, facultyMentorId: 'faculty_f1', feedback: [], history: [] },
+                    { id: 'req_mock_3', title: 'Workshop on UI/UX Design', description: 'A one-day workshop for final year students on modern UI/UX principles.', eventDate: '2026-01-20', eventTime: '09:00', venue: 'Seminar Room 3', currentVersion: 1, status: 'Pending Student Forward', requestedBy: userId, facultyMentorId: 'faculty_f1', feedback: [{ message: 'Looks good. Please forward to Patron.', role: 'President', timestamp: new Date().toISOString() }], history: [] },
+                    { id: 'req_mock_2', title: 'Software Career Workshop', description: 'Sample: A workshop on resume building and interview skills. The previous version was too costly.', eventDate: '2026-01-10', eventTime: '10:00', venue: 'Seminar Room', currentVersion: 3, status: 'Pending Student Review', requestedBy: userId, facultyMentorId: 'faculty_m2', feedback: [{ message: 'Budget is too high. Please reduce... resubmit.', role: 'President', timestamp: new Date().toISOString() }], history: [] }
+                );
+            }
+           
+            userProfile = {
+                phone: '+92 300 1234567',
+                address: 'H. No 15, Street 4, Satellite Town, Rawalpindi',
+                picUrl: 'https://placehold.co/100x100/9275B7/ffffff?text=US',
+                isNominated: false,
+                isPresidentialCandidate: presidentialCandidates.some(c => c.regId === regId),
+                cabinetSubmitted: false 
+            };
+        }
+
+
+        // --- Initialization and Mock Auth Setup ---
+
+        function initApp() {
+            isAuthReady = true;
+            loadSampleData(null); 
+            window.renderApp('login'); 
+        }
+        window.initApp = initApp;
+        
+        // --- Mock Authentication Handlers ---
+        
+        function handleLogin(e) {
+            e.preventDefault();
+            const regId = e.target.regId.value;
+            
+            // Log in as mock user
+            userId = 'mock-user-123';
+            userName = 'Student Uzair Shah'; 
+            userRegId = regId || 'SE-2023-100'; 
+            
+            // Load sample data *based on logged-in user*
+            loadSampleData(userRegId);
+            
+            showMessage(`Welcome back, ${userName}!`, 'success');
+            window.renderApp('overview'); // Navigate to dashboard
+        }
+        window.handleLogin = handleLogin;
+
+        function handleLogout() {
+            userId = null;
+            userName = '';
+            userRegId = '';
+            userProfile = {};
+            userRequests = []; // Clear user-specific data
+            hasUserVoted = false; // Reset vote status
+            currentElectionPhase = 'Cabinet_Submission'; // Reset election phase
+            
+            showMessage("You have been successfully logged out.");
+            window.renderApp('login');
+            window.toggleChat('ai-chat-window'); // Close chat on logout
+        }
+        window.handleLogout = handleLogout;
+        
+        async function handlePasswordUpdate(e) {
+            e.preventDefault();
+            showMessage("Password successfully updated (Demo).", 'success');
+            e.target.reset(); 
+        }
+        window.handlePasswordUpdate = handlePasswordUpdate;
+
+        async function handleProfileUpdate(e) {
+            e.preventDefault();
+            showMessage("Profile details updated successfully (Demo).", 'success');
+            window.renderApp('profile'); 
+        }
+        window.handleProfileUpdate = handleProfileUpdate;
+
+
+        // --- Mock Student Specific Logic ---
+
+        async function submitEventRequest(e) {
+            e.preventDefault();
+            const form = e.target;
+            
+            // Collect Budget Items
+            let requirementsList = [];
+            const reqInputs = form.querySelectorAll('.req-row');
+            reqInputs.forEach(row => {
+                const item = row.querySelector('.req-item').value;
+                const rate = row.querySelector('.req-rate').value;
+                const amount = row.querySelector('.req-amount').value;
+                if(item) requirementsList.push({item, rate: parseInt(rate) || 0, amount: parseInt(amount) || 0});
+            });
+
+            // Collect Organizers
+            let organizers = [];
+            document.querySelectorAll('.organizer-entry').forEach(div => {
+                const name = div.querySelector('.org-name').innerText;
+                const reg = div.querySelector('.org-regId').innerText;
+                const role = div.querySelector('.org-role-input').value || 'Organizer';
+                organizers.push({ name, reg, role });
+            });
+            if (organizers.length === 0) {
+                 return showMessage("Please add at least one organizer (you should be one).", 'error');
+            }
+
+
+            // Create a new request object matching the form
+            const newRequest = {
+                id: 'mock_req_' + Date.now(),
+                title: form.title.value,
+                description: "Activity: " + form.activityType.value + ". Detailed Description: " + form.description.value, // Combined for display
+                eventDate: form.eventDate.value,
+                eventTime: form.eventTime.value,
+                venue: form.venue.value,
+                duration: form.duration.value,
+                guestSpeaker: form.guestSpeaker.value || 'N/A',
+                guestDesignation: form.guestDesignation.value || 'N/A',
+                requestedBy: userId,
+                requesterName: userName,
+                requesterRegId: userRegId,
+                facultyMentorId: form.facultyMentorId.value,
+                contactPerson: {
+                    name: form.contactName.value,
+                    regId: form.contactRegId.value,
+                    mobile: form.contactMobile.value
+                },
+                organizers: organizers,
+                requirements: requirementsList, // Store as objects
+                status: 'Pending President', 
+                currentVersion: 1,
+                feedback: [],
+                createdAt: new Date().toISOString(),
+                history: [{ stage: 'Student Submission', timestamp: new Date().toISOString() }],
+            };
+
+            // Add to the local array
+            userRequests.unshift(newRequest);
+            
+            showMessage("Event Request submitted successfully! Redirecting to tracking...", 'success');
+            window.renderApp('status'); // Navigate to status view
+        }
+        window.submitEventRequest = submitEventRequest;
+
+        window.openRevisionModal = function(eventId, currentTitle, currentDescription, lastFeedback) {
+            const feedbackText = lastFeedback.replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\n/g, '\n');
+            const descriptionText = currentDescription.replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\n/g, '\n');
+            
+            document.getElementById('revision-eventId').value = eventId;
+            document.getElementById('revision-description').value = descriptionText;
+            document.getElementById('revision-feedback').innerHTML = `
+                <strong>Previous Title:</strong> ${currentTitle}<br>
+                <strong>Last Feedback:</strong> <span class="text-red-800">${feedbackText}</span>
+            `;
+            
+            const modal = document.getElementById('revision-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.querySelector('.modal-content').classList.remove('scale-95', 'opacity-0');
+                modal.querySelector('.modal-content').classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+        
+        window.closeRevisionModal = function() {
+            const modal = document.getElementById('revision-modal');
+            modal.querySelector('.modal-content').classList.remove('scale-100', 'opacity-100');
+            modal.querySelector('.modal-content').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300); // Wait for transition
+        }
+
+        async function handleEventRevisionSubmission(e) {
+            e.preventDefault();
+            const eventId = e.target.eventId.value;
+            const newDescription = e.target.description.value;
+            
+            const eventIndex = userRequests.findIndex(r => r.id === eventId);
+            if (eventIndex > -1) {
+                userRequests[eventIndex].description = newDescription;
+                userRequests[eventIndex].status = 'Pending President';
+                userRequests[eventIndex].currentVersion += 1;
+                userRequests[eventIndex].history.push({ stage: `Student Revision (V${userRequests[eventIndex].currentVersion})`, timestamp: new Date().toISOString() });
+                
+                closeRevisionModal();
+                showMessage("Event Revision successfully sent back (Demo).", 'success');
+                window.renderApp('status'); 
+            } else {
+                showMessage("Error: Event not found.", 'error');
+            }
+        }
+        window.handleEventRevisionSubmission = handleEventRevisionSubmission;
+        
+        window.handleForwardToPatron = function(eventId) {
+            const eventIndex = userRequests.findIndex(r => r.id === eventId);
+            if (eventIndex > -1) {
+                userRequests[eventIndex].status = 'Pending Patron';
+                userRequests[eventIndex].history.push({ stage: 'Student Forwarded to Patron', timestamp: new Date().toISOString() });
+                
+                showMessage("Request forwarded to Patron (Demo).", 'success');
+                window.renderApp('status'); 
+            } else {
+                showMessage("Error: Event not found.", 'error');
+            }
+        }
+        window.handleForwardToPatron = handleForwardToPatron;
+
+        async function handleJoinVolunteer() {
+            showMessage("You have successfully registered as a Volunteer (Demo)!", 'success');
+        }
+        window.handleJoinVolunteer = handleJoinVolunteer;
+        
+        async function handleVoteSubmission(candidateId, candidateName) {
+            if (hasUserVoted) return showMessage("You have already voted.", 'warning');
+
+            hasUserVoted = true; 
+            showMessage(`Successfully voted for ${candidateName} (Demo)! Your dashboard is now unlocked.`, 'success', 6000);
+            window.renderApp('overview'); 
+        }
+        window.handleVoteSubmission = handleVoteSubmission;
+        
+        // NEW: Handles Candidate Profile Submission (Replaced old Cabinet Form)
+        async function handleSubmitCandidateProfile(e) {
+            e.preventDefault();
+            const form = e.target;
+            
+            // Find current candidate in mock data
+            const candidate = presidentialCandidates.find(c => c.regId === userRegId);
+            
+            if(candidate){
+                candidate.slogan = form.slogan.value;
+                candidate.picUrl = form.picUrl.value;
+                candidate.vision = form.vision.value;
+                candidate.experience = form.experience.value;
+                candidate.social = form.social.value;
+                candidate.portfolio = form.portfolio.value; // NEW
+                candidate.vp_name = form.vp_name.value; // NEW
+                candidate.profileSubmitted = true;
+                
+                // Update local userProfile with new pic URL for continuity
+                userProfile.picUrl = form.picUrl.value;
+            }
+
+            userProfile.cabinetSubmitted = true; // Use this flag to lock the form
+            
+            showMessage("Your Candidate Profile has been submitted to the Patron for review.", 'success');
+            window.renderApp('elections'); 
+        }
+        window.handleSubmitCandidateProfile = handleSubmitCandidateProfile;
+
+        
+        // --- NEW: Organizer Search and Management ---
+
+        window.searchStudent = function() {
+            const query = document.getElementById('student-search-input').value.toLowerCase();
+            const resultsDiv = document.getElementById('student-search-results');
+            
+            if (query.length < 3) {
+                resultsDiv.innerHTML = '<p class="text-sm text-gray-500">Enter at least 3 characters to search.</p>';
+                return;
+            }
+
+            const results = allStudents.filter(student => 
+                (student.name.toLowerCase().includes(query) || student.regId.toLowerCase().includes(query))
+            );
+            
+            resultsDiv.innerHTML = '';
+            if (results.length === 0) {
+                resultsDiv.innerHTML = '<p class="text-sm text-red-500">No students found matching the query.</p>';
+            } else {
+                results.forEach(student => {
+                    const isAlreadyAdded = document.getElementById(`org-${student.regId}`);
+                    if (!isAlreadyAdded) {
+                        resultsDiv.innerHTML += `
+                            <div class="flex justify-between items-center p-2 bg-white border rounded-lg mb-1">
+                                <span class="text-sm font-semibold">${student.name} (<span class="org-regId">${student.regId}</span>)</span>
+                                <button onclick="addOrganizer('${student.name}', '${student.regId}')" type="button" class="bg-green-500 hover:bg-green-600 text-white text-xs py-1 px-3 rounded-lg">
+                                    Add
+                                </button>
+                            </div>
+                        `;
+                    }
+                });
+            }
+        }
+        window.searchStudent = searchStudent;
+        
+        window.addOrganizer = function(name, regId) {
+            const organizersDiv = document.getElementById('selected-organizers');
+            
+            if (organizersDiv.querySelectorAll('.organizer-entry').length >= 4) {
+                return showMessage("Maximum 4 organizers allowed.", 'warning');
+            }
+
+            const newOrganizerHtml = `
+                <div id="org-${regId}" class="organizer-entry p-3 bg-gray-100 rounded-lg border border-gray-300 flex flex-wrap items-center justify-between transition-all duration-200 mb-2">
+                    <span class="font-semibold text-gray-800 w-full sm:w-auto overflow-hidden text-ellipsis whitespace-nowrap">
+                        <span class="org-name">${name}</span> (<span class="org-regId">${regId}</span>)
+                    </span>
+                    <div class="flex items-center space-x-2 mt-2 sm:mt-0">
+                        <input type="text" class="org-role-input p-1 border rounded text-xs w-28 focus:border-[#5d3a8e]" placeholder="Role (Optional)">
+                        <button onclick="removeOrganizer('${regId}')" type="button" class="text-red-500 hover:text-red-700 text-sm font-bold">
+                            &times;
+                        </button>
+                    </div>
+                </div>
+            `;
+            organizersDiv.insertAdjacentHTML('beforeend', newOrganizerHtml);
+            showMessage(`${name} added to the organizing team.`, 'success', 2000);
+            
+            // Clear search results/input
+            const searchInput = document.getElementById('student-search-input');
+            if(searchInput) searchInput.value = '';
+            const searchResults = document.getElementById('student-search-results');
+            if(searchResults) searchResults.innerHTML = '';
+        }
+        window.addOrganizer = addOrganizer;
+
+        window.removeOrganizer = function(regId) {
+            const organizerEl = document.getElementById(`org-${regId}`);
+            if (organizerEl) {
+                organizerEl.remove();
+                showMessage(`Organizer removed.`, 'success', 2000);
+            }
+        }
+        window.removeOrganizer = removeOrganizer;
+
+
+        // --- Rendering Functions (Updated for UI/UX) ---
+        
+        function getWorkflowStep(status) {
+            if (status === 'Pending President') return 2;
+            if (status === 'Pending Student Forward') return 3;
+            if (status === 'Pending Patron') return 4;
+            if (status === 'Pending HOD') return 5;
+            if (status.includes('Affairs')) return 6;
+            if (status.includes('Approved')) return 7; 
+            if (status.includes('Review')) return 1; 
+            return 1; 
+        }
+
+        function renderWorkflowTracker(status) {
+            const currentStep = getWorkflowStep(status);
+            const stages = ['Submitted', 'President', 'Review', 'Patron', 'HOD', 'SA'];
+            
+            let html = '<div class="flex items-center w-full mt-4 mb-2">';
+            
+            stages.forEach((stage, index) => {
+                const step = index + 1;
+                let dotClass = 'bg-gray-300';
+                let lineClass = 'bg-gray-300';
+                let textClass = 'text-gray-400';
+                let dotAnimation = '';
+
+                if (step < currentStep) {
+                    dotClass = 'bg-[#5d3a8e]';
+                    lineClass = 'bg-[#5d3a8e]';
+                    textClass = 'text-[#5d3a8e]';
+                } else if (step === currentStep) {
+                    dotClass = 'bg-[#9275B7]';
+                    lineClass = 'bg-gray-300';
+                    textClass = 'text-[#5d3a8e] font-bold';
+                    dotAnimation = 'step-active';
+                }
+
+                if (stage === 'Review' && currentStep < 3) {
+                     textClass = 'text-gray-400'; 
+                }
+                if (stage === 'Review' && status !== 'Pending Student Forward') {
+                    stage = ''; 
+                }
+
+                html += `
+                    <div class="flex flex-col items-center ${dotAnimation}">
+                        <div class="dot w-4 h-4 rounded-full ${dotClass} z-10"></div>
+                        <span class="text-xs mt-1 ${textClass}">${stage}</span>
+                    </div>
+                `;
+                
+                if (step < stages.length) {
+                    html += `<div class="flex-1 h-1 ${lineClass} mb-4"></div>`;
+                }
+            });
+            
+            html += '</div>';
+            return html;
+        }
+
+        function renderApp(view = 'overview') {
+            const container = document.getElementById('main-content');
+            const header = document.getElementById('app-header');
+            const sidebar = document.getElementById('app-sidebar');
+            const fab = document.getElementById('fab-chat');
+            currentView = view;
+            
+            // Discussion Links override dashboard content rendering
+            if (view === 'discussion') {
+                 toggleChat('ai-chat-window'); 
+                 currentView = 'overview';
+            }
+
+            if (!userId) {
+                // User is logged out, show login page
+                container.innerHTML = renderLandingPage();
+                header.classList.add('hidden');
+                sidebar.classList.add('hidden');
+                fab.classList.add('hidden');
+                document.getElementById('app-container').classList.remove('p-4', 'md:p-8', 'bg-gray-50');
+            } else {
+                // User is logged in, show dashboard
+                header.classList.remove('hidden');
+                sidebar.classList.remove('hidden');
+                fab.classList.remove('hidden');
+                document.getElementById('app-container').classList.add('p-4', 'md:p-8', 'bg-gray-50');
+                
+                // Update sidebar
+                renderSidebar();
+                
+                // --- ELECTION LOCKDOWN LOGIC ---
+                if (currentElectionPhase === 'Voting' && !hasUserVoted) {
+                    container.innerHTML = `
+                        <div class="p-4 md:p-8 min-h-screen flex items-center justify-center bg-gray-50 w-full">
+                            <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-2xl">
+                                ${renderElectionVoting()}
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Update Header
+                document.getElementById('header-profile-pic').src = userProfile.picUrl || 'https://placehold.co/40x40/cccccc/333333?text=P';
+                document.getElementById('header-user-info').innerText = `${userName} (${userRegId})`;
+
+                let contentHtml = '';
+                switch(currentView) {
+                    case 'request-event': contentHtml = renderStudentEventRequestForm(); break;
+                    case 'status': contentHtml = renderEventStatusView(); break;
+                    case 'volunteer': contentHtml = renderJoinVolunteer(); break;
+                    case 'elections': contentHtml = renderElectionVoting(); break; 
+                    case 'view-events': contentHtml = renderViewAllEvents(); break;
+                    case 'profile': contentHtml = renderProfileManagement(); break;
+                    case 'overview':
+                    default: contentHtml = renderOverviewAnnouncements(); break;
+                }
+                
+                container.innerHTML = `
+                    <h1 class="text-3xl font-extrabold text-gray-800 mb-2">${getFriendlyTitle(currentView)}</h1>
+                    <p class="text-gray-600 mb-8 font-medium">${getFriendlySubtitle(currentView)}</p>
+                    <div id="dashboard-content" class="p-0">
+                        ${contentHtml}
+                    </div>
+                `;
+            }
+        }
+        window.renderApp = renderApp;
+        
+        function renderSidebar() {
+            const navContainer = document.getElementById('sidebar-nav');
+            
+            const navItems = [
+                { id: 'overview', label: 'Dashboard', icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>` },
+                { id: 'view-events', label: 'Events & Activities', icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>` },
+                { id: 'request-event', label: 'Authorization Form', icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>` },
+                { id: 'status', label: 'Track Submissions', icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>` },
+                { id: 'volunteer', label: 'Volunteer', icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h2a2 2 0 002-2V7a2 2 0 00-2-2h-2.5a1.5 1.5 0 01-1.125-.627m-1.091-1.085A3.001 3.001 0 0012 5.056V4.5A2.5 2.5 0 009.5 2H9a2 2 0 00-2 2v.5A2.5 2.5 0 014.5 7H2a2 2 0 00-2 2v9a2 2 0 002 2h2m0-5a2 2 0 110-4 2 2 0 010 4zm14 0a2 2 0 110-4 2 2 0 010 4z"></path></svg>` },
+                { id: 'elections', label: 'Elections', icon: `<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354l.872.812a3.001 3.001 0 012.316.037L18.99 7.5l-2.091 2.091m-7.05-4.075L3.923 7.5 2 9.424l5.636 1.127a4 4 0 00-.775 2.518c0 1.954 1.258 3.593 3.002 4.137L12 18.5l-.262-.052C10.665 18.068 9.25 16.59 9.25 14.825c0-1.765 1.415-3.243 3.178-3.565L12 11l-.872-.812a3.001 3.001 0 01-2.316-.037L5.01 6.5l2.091-2.091m7.05 4.075L18.99 16.5l1.923-1.924-5.636-1.127a4 4 0 00.775-2.518c0-1.954-1.258-3.593-3.002-4.137L12 5.5l.262.052C13.335 5.932 14.75 7.41 14.75 9.175c0 1.765-1.415 3.243-3.178 3.565L12 13l.872.812a3.001 3.001 0 012.316-.037L18.99 15.5l-2.091 2.091"></path></svg>` }
+            ];
+            
+            let navHtml = `
+                <h3 class="text-sm font-bold text-[#5d3a8e] uppercase mb-4 px-2 tracking-wider">Student Hub</h3>
+                ${navItems.map(item => {
+                    const isActive = currentView === item.id;
+                    return `
+                        <button onclick="renderApp('${item.id}')" class="flex items-center w-full py-2 px-3 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition duration-150 group ${isActive ? 'bg-[#e7e0f2] text-[#5d3a8e] font-semibold' : ''}">
+                            <div class="h-5 w-5 mr-3 group-hover:text-[#5d3a8e] ${isActive ? 'text-[#5d3a8e]' : 'text-gray-500'}">
+                                ${item.icon}
+                            </div>
+                            ${item.label}
+                        </button>
+                    `;
+                }).join('')}
+                
+                <div class="pt-4 border-t border-gray-100 mt-4">
+                    <h3 class="text-sm font-bold text-gray-400 uppercase mb-2 px-2 tracking-wider">Settings</h3>
+                    <button onclick="renderApp('profile')" class="flex items-center w-full py-2 px-3 rounded-lg text-gray-700 font-medium hover:bg-gray-100 transition duration-150 group ${currentView === 'profile' ? 'bg-[#e7e0f2] text-[#5d3a8e] font-semibold' : ''}">
+                        <svg class="h-5 w-5 mr-3 group-hover:text-[#5d3a8e] ${currentView === 'profile' ? 'text-[#5d3a8e]' : 'text-gray-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        Profile Settings
+                    </button>
+                </div>
+            `;
+            navContainer.innerHTML = navHtml;
+        }
+
+        function renderLandingPage() {
+            return `
+                <div class="max-w-xl mx-auto p-8 bg-white shadow-2xl rounded-2xl border-t-8 border-[#5d3a8e] mt-20">
+                    <div class="flex flex-col items-center mb-6">
+                        <img src="https://play-lh.googleusercontent.com/8QQUZDWOC8RpSqVsw2apjdnLiHvyLc1vJBpOC0MNQcE3_-JHv3XtW1K5m6YmVA6I-A" alt="CUST Logo" class="h-16 w-16 mb-2">
+                        <h2 class="text-3xl font-extrabold text-gray-800 text-center">CAUSE Society Login</h2>
+                        <p class="text-center text-gray-600 mt-2">Access your Software Engineering Department portal.</p>
+                    </div>
+
+                    <div class="p-6 border border-gray-200 rounded-xl shadow-inner">
+                        <h3 class="text-xl font-semibold text-[#5d3a8e] mb-4 border-b pb-2">Login to Dashboard</h3>
+                        <form onsubmit="handleLogin(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="login-regId">Registration ID</label>
+                                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#9275B7] transition" id="login-regId" type="text" placeholder="SE-2023-100" name="regId" required>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 text-sm font-bold mb-2" for="login-password">Password</label>
+                                <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#9275B7] transition" id="login-password" type="password" placeholder="password" name="password" required>
+                            </div>
+                            <button class="w-full btn-primary text-white font-bold py-2 rounded-lg shadow-md transition duration-150" type="submit">
+                                Login
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+        window.renderLandingPage = renderLandingPage;
+
+        function renderOverviewAnnouncements() {
+            const postsHtml = publicPosts.map(post => `
+                    <div class="p-5 border-l-4 border-[#9275B7] bg-white rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl">
+                        <h4 class="text-xl font-extrabold text-[#5d3a8e]">${post.title}</h4>
+                        <p class="text-xs text-gray-500 mb-3 font-semibold">Posted: ${new Date(post.createdAt).toLocaleDateString()} | By: ${post.author || 'Society Management'}</p>
+                        ${post.imageUrl ? `<img src="${post.imageUrl}" onerror="this.onerror=null;this.src='https://placehold.co/400x200/9275B7/ffffff?text=Post+Image';" class="my-3 rounded-lg max-w-full h-auto shadow-sm">` : ''}
+                        <p class="text-gray-700 leading-relaxed">${post.description}</p>
+                    </div>
+                `).join('');
+
+            return `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    <div class="md:col-span-3">
+                        <h2 class="text-2xl font-bold mb-6 text-gray-800">Latest Updates</h2>
+                        <div class="space-y-4">
+                            ${postsHtml}
+                        </div>
+                    </div>
+
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-[#9275B7] transition-all duration-300 hover:shadow-xl">
+                        <h3 class="text-xl font-bold text-[#5d3a8e] mb-4 flex items-center">
+                            <svg class="w-6 h-6 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Quick Stats
+                        </h3>
+                        <div class="space-y-3">
+                            <p class="text-gray-700">Active Submissions: <span class="font-extrabold text-blue-600">${userRequests.filter(r => r.status.includes('Pending')).length}</span></p>
+                            <p class="text-gray-700">Approved Events: <span class="font-extrabold text-green-600">${userRequests.filter(r => r.status.includes('Approved')).length}</span></p>
+                            <p class="text-gray-700">Volunteer Hours: <span class="font-extrabold text-[#5d3a8e]">45 hrs</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-lg border-t-4 border-green-600 transition-all duration-300 hover:shadow-xl">
+                        <h3 class="text-xl font-bold text-green-700 mb-4 flex items-center">
+                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            Upcoming Events (Next 30 Days)
+                        </h3>
+                         <ul class="space-y-3">
+                            ${publicEvents.slice(0, 3).map(event => `
+                                <li class="p-3 bg-gray-50 rounded-lg flex justify-between items-center border border-gray-200">
+                                    <div>
+                                        <p class="font-semibold text-gray-800">${event.title}</p>
+                                        <p class="text-xs text-gray-500">${event.eventDate} @ ${event.eventTime}</p>
+                                    </div>
+                                    <span class="text-sm font-bold text-[#5d3a8e]">${event.venue}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                        <button onclick="renderApp('view-events')" class="mt-4 text-sm font-semibold text-[#5d3a8e] hover:underline">View all events →</button>
+                    </div>
+                </div>
+            `;
+        }
+        window.renderOverviewAnnouncements = renderOverviewAnnouncements;
+
+        function renderStudentEventRequestForm() {
+            const facultyOptions = facultyList.map(f => `<option value="${f.uid}">${f.name} (${f.dept || 'Faculty'})</option>`).join('');
+
+            return `
+                <form onsubmit="submitEventRequest(event)" id="event-request-form" class="bg-white p-8 rounded-xl shadow-lg border-t-4 border-[#5d3a8e]">
+                    <div class="col-span-full mb-6 text-center border-b pb-4">
+                         <h2 class="text-xl font-extrabold text-[#5d3a8e] mb-1">AUTHORIZATION FORM</h2>
+                         <p class="text-sm text-gray-500">(SEMINAR / EDUCATIONAL / VISIT / EXHIBITION / WORKSHOP / TRAINING)</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <div class="col-span-full">
+                            <h3 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">BASIC INFORMATION</h3>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">Title of the Activity</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" name="title" type="text" placeholder="e.g. Awareness Campaign" required>
+                        </div>
+                        <div class="mb-4">
+                             <label class="block text-gray-700 font-semibold mb-2">Activity Type</label>
+                             <select class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" name="activityType" required>
+                                <option>Seminar</option>
+                                <option>Educational Visit</option>
+                                <option>Recreational Visit</option>
+                                <option>Exhibition</option>
+                                <option>Walk</option>
+                                <option>Workshop</option>
+                                <option>Training</option>
+                             </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">Date</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" name="eventDate" type="date" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">Time</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" name="eventTime" type="time" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">Proposed Venue</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" name="venue" type="text" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">Duration</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" name="duration" type="text" placeholder="e.g. 3 hours" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">Guest Speaker Name</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" name="guestSpeaker" type="text">
+                        </div>
+                         <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">Guest Speaker Designation</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" name="guestDesignation" type="text" placeholder="e.g. CEO, Company Name">
+                        </div>
+                        <div class="mb-4 col-span-full">
+                            <label class="block text-gray-700 font-semibold mb-2">Detailed Description</label>
+                            <textarea class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" name="description" rows="3" required></textarea>
+                        </div>
+                        
+                        <!-- Student Details (Dynamic Search) -->
+                         <div class="col-span-full mt-4">
+                            <h3 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">STUDENTS' DETAILS (Organizers)</h3>
+                        </div>
+                        <div class="col-span-full">
+                             <p class="text-sm text-[#5d3a8e] mb-2 font-medium">Add Organizers (Max 4)</p>
+                            <div class="flex space-x-2 mb-3">
+                                <input type="text" id="student-search-input" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-[#5d3a8e]" placeholder="Search Name or Reg ID..." onkeyup="searchStudent()">
+                                <button type="button" onclick="searchStudent()" class="bg-[#5d3a8e] text-white p-2 rounded-lg hover:bg-[#4a2f72]">Search</button>
+                            </div>
+                            <div id="student-search-results" class="mb-4 space-y-1 max-h-24 overflow-y-auto border p-2 rounded-lg bg-gray-50">
+                                <p class="text-sm text-gray-500">Start typing name or Reg ID to find students.</p>
+                            </div>
+                             <div id="selected-organizers" class="space-y-2">
+                                <p class="text-sm text-gray-500">Selected Organizers (0/4):</p>
+                             </div>
+                        </div>
+
+                        <!-- Contact Person -->
+                        <div class="col-span-full mt-4">
+                            <h3 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">Contact Person Details</h3>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">Contact Person Name</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] transition" name="contactName" type="text" required>
+                        </div>
+                         <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">Contact Person Reg No</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e]" name="contactRegId" type="text" required>
+                        </div>
+                         <div class="mb-4 col-span-full">
+                            <label class="block text-gray-700 font-semibold mb-2">Mobile Number</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e]" name="contactMobile" type="tel" required>
+                        </div>
+
+                        <!-- Expected Budget / Requirements Table -->
+                        <div class="col-span-full mt-4">
+                            <h3 class="text-lg font-bold text-gray-800 mb-3 border-b pb-2">EXPECTED BUDGET / REQUIREMENTS</h3>
+                             <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse table-auto">
+                                    <thead>
+                                        <tr class="bg-gray-100 border-b">
+                                            <th class="p-2 text-sm font-semibold text-gray-600 w-1/2">S. No. & Requirement</th>
+                                            <th class="p-2 text-sm font-semibold text-gray-600 w-1/4">Rate</th>
+                                            <th class="p-2 text-sm font-semibold text-gray-600 w-1/4">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="budget-rows">
+                                        <!-- Rows for Panalfex, Prints, Sticky Notes, Charts, Paint Markers -->
+                                        ${[1, 2, 3, 4, 5, 6, 7, 8].map(i => `
+                                            <tr class="border-b req-row">
+                                                <td class="p-2"><input type="text" class="w-full border rounded p-1 req-item" placeholder="${i}. Item Name (Quantity)"></td>
+                                                <td class="p-2"><input type="number" class="w-full border rounded p-1 req-rate" placeholder="Rate" value=""></td>
+                                                <td class="p-2"><input type="number" class="w-full border rounded p-1 req-amount" placeholder="Amount" value=""></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                             </div>
+                        </div>
+                        
+                        <div class="col-span-full mt-4">
+                            <label class="block text-gray-700 font-semibold mb-2">Select Faculty Patron/Mentor</label>
+                            <select class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] focus:border-[#5d3a8e]" name="facultyMentorId" required>
+                                <option value="" disabled selected>-- Select Patron --</option>
+                                ${facultyOptions}
+                            </select>
+                        </div>
+
+                    </div>
+                    <button type="submit" class="mt-8 btn-primary text-white font-bold py-3 px-8 rounded-lg shadow-xl transition duration-150 w-full">
+                        Submit Authorization Form
+                    </button>
+                </form>
+            `;
+        }
+        window.renderStudentEventRequestForm = renderStudentEventRequestForm;
+
+        function renderEventStatusView() {
+            if (userRequests.length === 0) {
+                return `
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-gray-300">
+                        <p class="text-gray-500 font-medium">You have not submitted any event requests yet. Use the <span class="text-[#5d3a8e] font-semibold">Authorization Form</span> to start.</p>
+                    </div>
+                `;
+            }
+
+            const statusHtml = userRequests.map(req => {
+                let statusClass = 'status-pending';
+                let borderColor = 'border-yellow-500';
+                let icon = `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+                let actionBlock = '';
+
+                if (req.status.includes('Approved')) {
+                    statusClass = 'status-approved';
+                    borderColor = 'border-green-600';
+                    icon = `<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>`;
+                } else if (req.status.includes('Reject')) {
+                    statusClass = 'status-rejected';
+                    borderColor = 'border-red-600';
+                    icon = `<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>`;
+                
+                // ACTION: REVISION (Red Feedback)
+                } else if (req.status.includes('Student Review')) {
+                    statusClass = 'status-review';
+                    borderColor = 'border-blue-600';
+                    icon = `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>`;
+                    
+                    const lastFeedback = req.feedback && req.feedback.length > 0 ? escapeHtmlAttribute(req.feedback[req.feedback.length - 1].message) : 'No detailed feedback available.';
+                    const safeDescription = escapeHtmlAttribute(req.description);
+                    
+                    actionBlock = `
+                        <div class="mt-4 p-4 bg-red-50 border border-red-300 rounded-lg">
+                            <p class="font-bold text-red-700 flex items-center mb-1">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                Feedback Received:
+                            </p>
+                            <p class="text-red-600 text-sm italic ml-2">${lastFeedback.replace(/\\n/g, '<br>')}</p>
+                            <button onclick="openRevisionModal('${req.id}', '${req.title}', '${safeDescription}', '${lastFeedback}')" 
+                                    class="mt-3 text-white bg-blue-600 hover:bg-blue-700 text-sm py-2 px-4 rounded-lg font-medium shadow-md transition">
+                                <span class="flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                    Submit Revision
+                                </span>
+                            </button>
+                        </div>
+                    `;
+                
+                // ACTION: FORWARD (Green Feedback)
+                } else if (req.status.includes('Student Forward')) {
+                    statusClass = 'status-forward';
+                    borderColor = 'border-purple-600';
+                    icon = `<svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"></path></svg>`;
+                    
+                    const lastFeedback = req.feedback && req.feedback.length > 0 ? escapeHtmlAttribute(req.feedback[req.feedback.length - 1].message) : 'No detailed feedback available.';
+                    
+                    actionBlock = `
+                        <div class="mt-4 p-4 bg-green-50 border border-green-300 rounded-lg">
+                            <p class="font-bold text-green-700 flex items-center mb-1">
+                                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                President's Approval:
+                            </p>
+                            <p class="text-green-600 text-sm italic ml-2">${lastFeedback.replace(/\\n/g, '<br>')}</p>
+                            <button onclick="handleForwardToPatron('${req.id}')" 
+                                    class="mt-3 text-white bg-purple-600 hover:bg-purple-700 text-sm py-2 px-4 rounded-lg font-medium shadow-md transition">
+                                <span class="flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    Approve & Forward to Patron
+                                </span>
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                return `
+                    <div class="p-5 bg-white rounded-xl shadow-lg border-l-4 ${borderColor} transition-all duration-300 hover:shadow-xl">
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="text-xl font-extrabold text-[#5d3a8e]">${req.title} (V${req.currentVersion})</h4>
+                            <span class="event-status ${statusClass}">${icon} ${req.status}</span>
+                        </div>
+                        
+                        <p class="text-sm text-gray-600 mb-1">Date: ${req.eventDate} @ ${req.eventTime}</p>
+                        
+                        <!-- NEW WORKFLOW TRACKER -->
+                        ${renderWorkflowTracker(req.status)}
+
+                        <!-- Action Block (Feedback or Forward) -->
+                        ${actionBlock}
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <p class="text-gray-600 mb-6 font-medium">Monitor the approval workflow and address any required revisions promptly.</p>
+                <div id="student-requests-list" class="space-y-6">
+                    ${statusHtml}
+                </div>
+            `;
+        }
+        window.renderEventStatusView = renderEventStatusView;
+
+        function renderJoinVolunteer() {
+            return `
+                <div class="bg-white p-8 rounded-xl shadow-lg border-l-4 border-[#5d3a8e] transition-all duration-300 hover:shadow-xl">
+                    <p class="text-lg text-gray-700 mb-4 font-medium">Become an integral part of Cause Society by volunteering for upcoming events. Gain experience and earn valuable credit hours!</p>
+                    <p class="text-sm text-[#9275B7] mb-6">Your profile details (Name, Reg ID, Contact) will be shared with the Volunteer Coordinator upon registration.</p>
+                    <button onclick="handleJoinVolunteer()" class="btn-primary text-white font-bold py-3 px-8 rounded-lg shadow-xl transition duration-150">
+                        Register as Volunteer Now
+                    </button>
+                </div>
+            `;
+        }
+        window.renderJoinVolunteer = renderJoinVolunteer;
+
+        function renderCandidateList(readOnly) {
+            if (presidentialCandidates.length === 0) {
+                return `<p class="text-gray-500">No candidates available at the moment.</p>`;
+            }
+
+            // In a real application, candidates would fetch detailed profiles here.
+            return presidentialCandidates.filter(c => c.isNominated).map(candidate => `
+                <div class="p-4 border border-gray-200 rounded-xl shadow-sm flex justify-between items-center mb-4 bg-white transition-all duration-300 hover:shadow-lg">
+                    <div class="flex items-center space-x-3">
+                        <img src="${candidate.picUrl || 'https://placehold.co/60x60/9275B7/ffffff?text=C'}" class="w-12 h-12 rounded-full object-cover border-2 border-[#5d3a8e]" />
+                        <div>
+                            <h4 class="text-lg font-bold text-gray-800">${candidate.name}</h4>
+                            <p class="text-sm text-gray-500">${candidate.regId} | <span class="italic text-gray-600">"${candidate.slogan}"</span></p>
+                            <!-- NEW: Detailed Profile Link -->
+                            <p class="text-xs text-blue-500 hover:underline cursor-pointer mt-1" onclick="showMessage('Showing detailed manifesto for ${candidate.name} (${candidate.vision ? candidate.vision.substring(0, 30) + '...' : 'No vision provided'})', 'warning')">View Detailed Manifesto</p>
+                        </div>
+                    </div>
+                    ${!readOnly ? `
+                        <button onclick="handleVoteSubmission('${candidate.id}', '${candidate.name}')" 
+                                class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-150 shadow-md">
+                            Cast Vote
+                        </button>
+                    ` : `<span class="text-sm font-semibold text-[#9275B7] p-2 bg-[#e7e0f2] rounded-full">Finalist</span>`}
+                </div>
+            `).join('');
+        }
+
+        // NEW: Candidate Profile Submission Form (Replaces old Cabinet Form)
+        function renderCandidateProfileSubmissionForm() {
+            const candidate = presidentialCandidates.find(c => c.regId === userRegId);
+            const isSubmitted = candidate && candidate.profileSubmitted;
+
+            if (isSubmitted) {
+                return `
+                    <div class="p-6 bg-white border-l-4 border-green-600 rounded-xl shadow-lg">
+                        <p class="text-xl font-bold text-green-700 flex items-center">
+                            <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                            Thank You! Your Candidate Profile has been submitted.
+                        </p>
+                        <p class="text-gray-600 mt-2">The Patron will review your profile before the final voting list is published.</p>
+                        <button onclick="showMessage('Profile submitted!', 'warning')" class="mt-4 btn-primary text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150">
+                            View Submitted Profile
+                        </button>
+                    </div>
+                `;
+            }
+
+            return `
+                <h2 class="text-2xl font-bold mb-6 text-gray-800">Submit Candidate Profile</h2>
+                <div class="p-4 bg-yellow-50 border border-yellow-300 rounded-lg mb-6 shadow-lg">
+                    <p class="font-semibold text-yellow-800 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 00-8 8c0 2.45 1.01 4.7 2.65 6.35l-1.3 1.3a1 1 0 101.42 1.41l1.3-1.3A8 8 0 1010 2zM8.5 11.5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z"></path></svg>
+                        You are a HOD-approved Finalist. Please complete your public profile.
+                    </p>
+                </div>
+                
+                <form onsubmit="handleSubmitCandidateProfile(event)" id="candidate-profile-form" class="bg-white p-8 rounded-xl shadow-lg border-t-4 border-[#5d3a8e]">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <div class="md:col-span-2 border-b pb-4 mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">Candidacy Details</h3>
+                        </div>
+
+                        <!-- Profile Picture Link (Simulated Upload/Link) -->
+                        <div class="md:col-span-2">
+                             <label class="block text-gray-700 font-semibold mb-2">Profile Picture Link (For Voter Visibility)</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9275B7] transition" name="picUrl" type="url" placeholder="Paste a direct URL to your profile photo (e.g., from LinkedIn or Placehold)." required value="${userProfile.picUrl}">
+                             <p class="text-xs text-gray-500 mt-1">Note: In a live environment, this would be a file upload option.</p>
+                        </div>
+                        
+                        <!-- Slogan -->
+                        <div class="md:col-span-2">
+                            <label class="block text-gray-700 font-semibold mb-2">Personal Slogan (Max 8 words) <span class="text-red-500">*</span></label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9275B7] transition" name="slogan" type="text" placeholder="e.g., Leadership through innovation and service." required>
+                        </div>
+
+                        <!-- Vision and Goals -->
+                        <div class="md:col-span-2 border-b pt-4 pb-4 mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">Manifesto: Vision and Goals</h3>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-gray-700 font-semibold mb-2">Vision & Goals (Manifesto) <span class="text-red-500">*</span></label>
+                            <textarea class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9275B7] transition" name="vision" rows="4" placeholder="Describe your plan for the society in the next term. (Max 200 words)" required></textarea>
+                        </div>
+                        
+                        <!-- Experience -->
+                        <div class="md:col-span-2">
+                            <label class="block text-gray-700 font-semibold mb-2">Past Society Experience / Achievements</label>
+                            <textarea class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9275B7] transition" name="experience" rows="3" placeholder="List relevant roles or major achievements."></textarea>
+                        </div>
+                        
+                        <!-- Social Reach -->
+                        <div class="md:col-span-2 border-b pt-4 pb-4 mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">Additional Resources & Team</h3>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-gray-700 font-semibold mb-2">Online Portfolio/GitHub Link (Optional)</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9275B7] transition" name="portfolio" type="url" placeholder="e.g., GitHub or a Personal Website showcasing work.">
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-gray-700 font-semibold mb-2">Proposed Vice President (VP) Name & Reg ID</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9275B7] transition" name="vp_name" type="text" placeholder="Name and Reg ID of proposed VP.">
+                        </div>
+                        
+                    </div>
+
+                    <button type="submit" class="mt-8 btn-primary text-white font-bold py-3 px-8 rounded-lg shadow-xl transition duration-150 w-full">
+                        Submit Profile to Patron for Review
+                    </button>
+                </form>
+            `;
+        }
+        window.renderCandidateProfileSubmissionForm = renderCandidateProfileSubmissionForm;
+
+        function renderElectionVoting() {
+            let content = '';
+
+            if (currentElectionPhase === 'Nomination') {
+                const enrollmentStatus = userProfile.isNominated ? 
+                    `<p class="text-lg font-semibold text-green-700">Status: Nominated (Awaiting Patron Review)</p>` : 
+                    `<p class="text-lg font-semibold text-gray-700">Status: Not yet nominated.</p>`;
+
+                content = `
+                    <h2 class="text-2xl font-bold mb-6 text-gray-800">Presidential Nomination Phase</h2>
+                    <div class="p-6 bg-white border-l-4 border-[#5d3a8e] rounded-xl shadow-lg mb-6">
+                        <p class="text-lg text-gray-700 mb-4">If you are eligible, you can submit your candidacy to become the next Society President.</p>
+                        ${enrollmentStatus}
+                        <button onclick="handlePresidentialNomination()" 
+                                ${userProfile.isNominated ? 'disabled' : ''}
+                                class="mt-4 bg-[#5d3a8e] hover:bg-[#4a2f72] text-white font-bold py-2 px-6 rounded-lg transition duration-150 shadow-md ${userProfile.isNominated ? 'opacity-50 cursor-not-allowed' : ''}">
+                            ${userProfile.isNominated ? 'Nomination Submitted' : 'Enroll as Candidate'}
+                        </button>
+                    </div>
+                    <h3 class="text-xl font-bold mt-8 mb-4 text-gray-800">Current Nominated Candidates</h3>
+                    <div class="space-y-4">
+                        ${renderCandidateList(true)}
+                    </div>
+                `;
+            
+            } else if (currentElectionPhase === 'Cabinet_Submission') {
+                if (userProfile.isPresidentialCandidate) {
+                    // Candidate needs to submit profile
+                    content = renderCandidateProfileSubmissionForm();
+                } else {
+                    // This user is NOT a candidate
+                    content = `
+                        <div class="p-6 bg-white border-l-4 border-blue-600 rounded-xl shadow-lg">
+                            <p class="text-xl font-semibold text-blue-700">Election Update</p>
+                            <p class="text-gray-600 mt-2">Candidates have been finalized and are currently submitting their profiles. Voting will begin soon!</p>
+                        </div>
+                    `;
+                }
+            
+            } else if (currentElectionPhase === 'Voting') {
+                // ... (Voting lockdown logic kept for completeness)
+                if (hasUserVoted) {
+                    content = `
+                        <h2 class="text-2xl font-bold mb-6 text-gray-800">Presidential Elections</h2>
+                        <div class="p-6 bg-white border-l-4 border-green-600 rounded-xl shadow-lg">
+                            <p class="text-xl font-bold text-green-700 flex items-center"><svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>Thank You! Your vote has been recorded.</p>
+                            <p class="text-gray-600 mt-2">You have successfully participated in the election. Results will be announced soon.</p>
+                        </div>
+                        <h3 class="text-xl font-bold mt-8 mb-4 text-gray-800">Current Candidates (For Reference)</h3>
+                        <div class="space-y-4">
+                            ${renderCandidateList(true)}
+                        </div>
+                    `;
+                } else {
+                    content = `
+                        <h2 class="text-2xl font-bold mb-6 text-red-600">Presidential Election - CAST YOUR VOTE!</h2>
+                        <div class="p-4 bg-red-50 border border-red-300 rounded-lg mb-6 shadow-lg">
+                            <p class="font-semibold text-red-800 flex items-center">
+                                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                ELECTION LOCKDOWN: Your dashboard access is restricted until you cast your vote.
+                            </p>
+                        </div>
+                        
+                        <h3 class="text-xl font-bold mb-4 text-gray-800">Select Your Candidate:</h3>
+                        <div class="space-y-4">
+                            ${renderCandidateList(false)}
+                        </div>
+                    `;
+                }
+            } else { // Inactive
+                content = `
+                    <div class="p-6 bg-white border-l-4 border-gray-400 rounded-xl shadow-lg">
+                        <p class="text-xl font-semibold text-gray-700">The Presidential Election is currently inactive.</p>
+                        <p class="text-gray-600 mt-2">Please check back later for announcements on nomination and voting phases.</p>
+                    </div>
+                `;
+            }
+            
+            return content;
+        }
+        window.renderElectionVoting = renderElectionVoting;
+
+        function renderViewAllEvents() {
+            if (publicEvents.length === 0) {
+                 return `
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-gray-300">
+                        <p class="text-gray-500">No Final Approved Events are available at the moment.</p>
+                    </div>
+                `;
+            }
+            
+            const eventsHtml = publicEvents.map(event => {
+                const mentor = facultyList.find(f => f.uid === event.facultyMentorId);
+                
+                return `
+                    <div class="p-5 bg-white rounded-xl shadow-lg border-l-4 border-[#5d3a8e] transition-all duration-300 hover:shadow-xl">
+                        <h4 class="text-xl font-bold text-[#5d3a8e] mb-1">${event.title}</h4>
+                        <p class="text-xs text-gray-500 mb-3 font-semibold">Status: <span class="font-bold text-green-600">Approved</span></p>
+                        
+                        <div class="grid grid-cols-2 text-sm text-gray-700 gap-x-4 gap-y-1">
+                            <p class="font-medium">Date: <span class="font-extrabold">${event.eventDate}</span></p>
+                            <p class="font-medium">Time: <span class="font-extrabold">${event.eventTime}</span></p>
+                            <p class="col-span-2 font-medium">Venue: <span class="font-extrabold">${event.venue || 'TBD'}</span></p>
+                            <p class="col-span-2 font-medium">Mentor: <span class="font-extrabold">${mentor ? mentor.name : 'Not Found'}</span></p>
+                        </div>
+                        
+                        <details class="mt-4 text-sm cursor-pointer">
+                            <summary class="font-semibold text-[#9275B7] hover:text-[#5d3a8e]">View Details</summary>
+                            <p class="text-gray-600 mt-2 p-2 bg-gray-50 rounded-lg">${event.description}</p>
+                        </details>
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <p class="text-gray-600 mb-6 font-medium">These events are officially approved and scheduled by Student Affairs.</p>
+                <div class="space-y-6">
+                    ${eventsHtml}
+                </div>
+            `;
+        }
+        window.renderViewAllEvents = renderViewAllEvents;
+        
+        function renderProfileManagement() {
+            const defaultPic = 'https://placehold.co/100x100/cccccc/333333?text=P';
+            
+            return `
+                <div class="bg-white p-8 rounded-xl shadow-lg border-t-4 border-[#5d3a8e] mb-8">
+                    <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-8 mb-6 border-b pb-4">
+                        <img src="${userProfile.picUrl || defaultPic}" onerror="this.onerror=null;this.src='${defaultPic}'" alt="Profile Pic" class="w-24 h-24 rounded-full object-cover border-4 border-[#5d3a8e] shadow-xl">
+                        <div class="text-center md:text-left">
+                            <p class="font-extrabold text-2xl text-[#5d3a8e]">${userName}</p>
+                            <p class="font-semibold text-md text-gray-700">Reg ID: ${userRegId}</p>
+                            <p class="text-sm text-gray-500">UID: ${userId.substring(0, 10)}...</p>
+                        </div>
+                    </div>
+
+                    
+                    <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">Update Profile Details</h3>
+                    <form onsubmit="handleProfileUpdate(event)" class="max-w-lg space-y-4">
+                        
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="phone">Phone Number</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] focus:border-[#5d3a8e] transition" id="phone" name="phone" type="tel" value="${userProfile.phone || ''}" placeholder="+92 300 xxxxxxx">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="address">Address</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] focus:border-[#5d3a8e] transition" id="address" name="address" type="text" value="${userProfile.address || ''}" placeholder="H. No. / Street / Town">
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2" for="picUrl">Profile Picture URL</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] focus:border-[#5d3a8e] transition" id="picUrl" name="picUrl" type="url" value="${userProfile.picUrl || ''}" placeholder="https://placehold.co/100x100">
+                        </div>
+
+                        <button type="submit" class="btn-primary text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150">
+                            Save Profile Details
+                        </button>
+                    </form>
+                    
+                    <hr class="my-8 border-gray-200">
+                    
+                    
+                    <h3 class="text-xl font-bold mb-4 text-gray-800 border-b pb-2">Change Password</h3>
+                    <form onsubmit="handlePasswordUpdate(event)" class="max-w-md">
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2" for="new-password">New Password</label>
+                            <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5d3a8e] focus:border-[#5d3a8e] transition" id="new-password" name="newPassword" type="password" required minlength="6" placeholder="At least 6 characters">
+                        </div>
+                        <button type="submit" class="bg-[#9275B7] hover:bg-[#a68bc4] text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150">
+                            Update Password
+                        </button>
+                    </form>
+                </div>
+            `;
+        }
+        window.renderProfileManagement = renderProfileManagement;
+
+
+        // Initialize the app on window load
+        window.onload = initApp;
+
+    </script>
+</body>
+</html>

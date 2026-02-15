@@ -1,0 +1,166 @@
+@startuml CauseSocietyArchitecture
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam componentStyle rectangle
+skinparam rectangleFontSize 14
+skinparam componentFontSize 11
+
+title **Cause Society Management System**\n//Accurate Enterprise Architecture//
+
+!define BLUE #E3F2FD
+!define GREEN #E8F5E8  
+!define ORANGE #FFF3E0
+!define PURPLE #F3E5F5
+
+package "**Presentation Layer**" BLUE {
+    rectangle "Role-Based Dashboards" #BBDEFB {
+        [Student Dashboard] as Student
+        [Faculty Dashboard] as Faculty  
+        [Admin Dashboard] as Admin
+        [HOD Dashboard] as HOD
+        [Patron Dashboard] as Patron
+        [President Dashboard] as President
+        [SA Dashboard] as SA
+        [VC Dashboard] as VC
+        [GD Dashboard] as GD
+    }
+}
+
+package "**Application Layer**" GREEN {
+    rectangle "Controllers" #C8E6C9 {
+        [Auth Controllers] as AuthCtrl
+        [Student Controllers] as StudentCtrl  
+        [Admin Controllers] as AdminCtrl
+        [HOD Controllers] as HODCtrl
+        [Patron Controllers] as PatronCtrl
+        [President Controllers] as PresidentCtrl
+        [SA Controllers] as SACtrl
+        [VC Controllers] as VCCtrl
+        [GD Controllers] as GDCtrl
+        [Faculty Controllers] as FacultyCtrl
+    }
+    rectangle "Middleware" #A5D6A7 {
+        [Authentication] as AuthMW
+        [Role Middleware] as RoleMW
+        [Password Check] as PassMW
+    }
+}
+
+package "**Business Layer**" ORANGE {
+    [Event Workflow\nService] as EventService #FFE0B2
+    [Financial Analytics\nService] as FinanceService #FFCC80
+}
+
+package "**Data Layer**" PURPLE {
+    rectangle "Core Models" #E1BEE7 {
+        [User] as UserModel
+        [Event] as EventModel
+        [Budget] as BudgetModel
+        [Message] as MessageModel
+        [Vote] as VoteModel
+        [Event Graphics] as GraphicsModel
+        [Event Volunteers] as VolunteerModel
+        [Academic Term] as TermModel
+        [Activity Log] as ActivityModel
+        [Role Assignment] as RoleModel
+        [Candidate Profile] as CandidateModel
+        [Event Item] as ItemModel
+        [Announcement] as AnnouncementModel
+        [Election Setting] as ElectionModel
+    }
+    
+    database "**MySQL Database**" #CE93D8 {
+        folder "Tables" {
+            [users]
+            [events] 
+            [budgets]
+            [messages]
+            [votes]
+            [event_graphics]
+            [event_volunteers]
+            [academic_terms]
+            [activity_logs]
+            [role_assignments]
+            [candidate_profiles]
+            [event_items]
+            [announcements]
+            [election_settings]
+        }
+    }
+}
+
+' Dashboard to Controller connections
+Student --> StudentCtrl
+Faculty --> FacultyCtrl
+Admin --> AdminCtrl
+HOD --> HODCtrl
+Patron --> PatronCtrl
+President --> PresidentCtrl
+SA --> SACtrl
+VC --> VCCtrl
+GD --> GDCtrl
+
+' Controllers through Middleware
+StudentCtrl --> RoleMW
+AdminCtrl --> RoleMW
+HODCtrl --> RoleMW
+PatronCtrl --> RoleMW
+PresidentCtrl --> RoleMW
+SACtrl --> RoleMW
+VCCtrl --> RoleMW
+GDCtrl --> RoleMW
+FacultyCtrl --> RoleMW
+
+AuthCtrl --> AuthMW
+RoleMW --> PassMW
+
+' Controllers to Services
+StudentCtrl --> EventService
+HODCtrl --> FinanceService
+PatronCtrl --> EventService
+PresidentCtrl --> EventService
+SACtrl --> EventService
+
+' Services to Models
+EventService --> EventModel
+EventService --> ActivityModel
+EventService --> UserModel
+FinanceService --> BudgetModel
+FinanceService --> EventModel
+
+' Models to Database
+UserModel --> users
+EventModel --> events
+BudgetModel --> budgets
+MessageModel --> messages
+VoteModel --> votes
+GraphicsModel --> event_graphics
+VolunteerModel --> event_volunteers
+TermModel --> academic_terms
+ActivityModel --> activity_logs
+RoleModel --> role_assignments
+CandidateModel --> candidate_profiles
+ItemModel --> event_items
+AnnouncementModel --> announcements
+ElectionModel --> election_settings
+
+' Key features
+note right of EventService
+  **Event Workflow:**
+  • Student → President → Patron → HOD → SA
+  • Status: pending_president, pending_patron, 
+    pending_hod, pending_sa, approved, rejected
+  • Graphics & Volunteer Management
+  • Activity Logging & Notifications
+end note
+
+note right of FinanceService
+  **Financial Analytics:**
+  • Budget Allocation & Tracking
+  • Spending Analysis & Reports
+  • Historical Trends & Comparisons
+  • Budget Alerts & Efficiency Metrics
+  • Monthly/Event-wise Breakdowns
+end note
+
+@enduml

@@ -1,0 +1,74 @@
+@startuml CauseSocietyCompleteWorkflow
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam activityFontSize 12
+skinparam activityDiamondFontSize 12
+skinparam noteFontSize 11
+
+header Cause Society Management System
+title **Unified System Workflow Diagram**
+
+' --- PART 1: EVENT LIFECYCLE ---
+partition "Event Approval Workflow" {
+    (*) --> "Student: Create Event"
+    note right: Uses Active Term ID
+    
+    --> "Status: Pending President"
+    
+    if "President Review" then
+      -->[Approve] "Status: Pending Patron"
+      note bottom: Automatically forwarded
+    else
+      -->[Request Revision] "Status: Revision Needed"
+      --> "Student: Edit Event"
+      --> "Status: Pending President"
+    endif
+
+    if "Patron Review" then
+      -->[Approve] "Status: Pending HOD"
+    else
+      -->[Reject] "Status: Rejected"
+      --> (*)
+    endif
+
+    if "HOD Review" then
+      -->[Approve] "Status: Pending SA"
+    else
+      -->[Request Revision] "Status: Revision Needed"
+    endif
+
+    if "SA Review" then
+      -->[Approve] "Status: Approved"
+      --> "Event Execution"
+      --> (*)
+    else
+      -->[Reject] "Status: Rejected"
+    endif
+}
+
+' --- PART 2: TERM & ROLE TRANSITION ---
+partition "Term & Role Management" {
+    "Admin: Create New Term" --> "Set Term Status = 'Active'"
+    
+    "Set Term Status = 'Active'" --> "Admin: Appoint HOD"
+    note right: Deactivates previous HOD for this term
+    
+    "Admin: Appoint HOD" --> "HOD: Appoint Patron"
+    note right: Deactivates previous Patron for this term
+    
+    "HOD: Appoint Patron" --> "Global State: Active Term & Roles"
+}
+
+' --- PART 3: SYSTEM INTEGRATION ---
+partition "Data & Logic Flow" {
+    "User Request" --> "Middleware: Role & Term Check"
+    note right: Verify if user has active assignment\nfor the current active term
+    
+    "Middleware: Role & Term Check" --> "Controller: Process Action"
+    
+    "Controller: Process Action" --> "Event/Finance Service"
+    
+    "Event/Finance Service" --> "Database: Persistence"
+}
+
+@enduml

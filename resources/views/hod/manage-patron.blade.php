@@ -1,0 +1,274 @@
+@extends('layouts.dashboard')
+
+@section('title', 'Manage Patron - CAUSE Smart Society')
+@section('page-title', 'Patron Management')
+@section('page-description', 'Assign and manage Patron for the current term')
+
+@section('sidebar')
+    <a href="{{ route('hod.dashboard') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+        </svg>
+        Dashboard
+    </a>
+    <a href="{{ route('hod.manage-patron') }}" class="sidebar-link active flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 mt-2">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+        </svg>
+        Manage Patron
+    </a>
+    <a href="{{ route('hod.budget') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 mt-2">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        Manage Budget
+    </a>
+    <a href="{{ route('hod.analytics') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 mt-2">
+        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+        Analytics
+    </a>
+@endsection
+
+@section('content')
+<div class="max-w-4xl mx-auto">
+    <!-- Back Button -->
+    <div class="mb-6">
+        <a href="{{ route('hod.dashboard') }}" class="text-cause-purple hover:text-cause-purple-dark flex items-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Current Term Info -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div class="flex items-center">
+            <svg class="w-6 h-6 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            <div>
+                <p class="text-sm text-blue-600 font-medium">Current Term</p>
+                <p class="text-lg font-bold text-blue-800">{{ $currentTerm->term_name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Patron Status -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h3 class="text-lg font-semibold text-gray-800">Current Patron Assignment</h3>
+        </div>
+        <div class="p-6">
+            @if($currentPatronAssignment)
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mr-4">
+                            <span class="text-2xl font-bold text-purple-600">{{ substr($currentPatronAssignment->user->name, 0, 1) }}</span>
+                        </div>
+                        <div>
+                            <p class="text-xl font-bold text-gray-800">{{ $currentPatronAssignment->user->name }}</p>
+                            <p class="text-gray-600">{{ $currentPatronAssignment->user->reg_id }}</p>
+                            <p class="text-sm text-gray-500">{{ $currentPatronAssignment->user->email }}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">Active</span>
+                        <p class="text-sm text-gray-500 mt-2">Assigned: {{ $currentPatronAssignment->assigned_at->format('M d, Y') }}</p>
+                    </div>
+                </div>
+            @else
+                <!-- New Term Alert -->
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div class="flex items-center">
+                        <svg class="w-6 h-6 text-yellow-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        <div>
+                            <p class="font-bold text-yellow-800">New Term Detected!</p>
+                            <p class="text-yellow-700">No Patron has been assigned for this term yet. Please assign a Patron below.</p>
+                        </div>
+                    </div>
+                </div>
+            @endif
+        </div>
+    </div>
+
+    <!-- Assignment Options -->
+    @if(!$currentPatronAssignment)
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <!-- Continue with Previous Patron -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 bg-green-50">
+                <h3 class="text-lg font-semibold text-green-800">Continue with Previous Patron</h3>
+            </div>
+            <div class="p-6">
+                @if($previousPatronAssignment)
+                    <div class="mb-4">
+                        <div class="flex items-center mb-3">
+                            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mr-3">
+                                <span class="text-lg font-bold text-gray-600">{{ substr($previousPatronAssignment->user->name, 0, 1) }}</span>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-800">{{ $previousPatronAssignment->user->name }}</p>
+                                <p class="text-sm text-gray-500">{{ $previousPatronAssignment->user->reg_id }}</p>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4">
+                            Was Patron in: <span class="font-medium">{{ $previousPatronAssignment->term->term_name }}</span>
+                        </p>
+                    </div>
+                    <form action="{{ route('hod.continue-patron') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition">
+                            <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Continue with Previous Patron
+                        </button>
+                    </form>
+                @else
+                    <p class="text-gray-500 text-center py-4">No previous Patron found in the system.</p>
+                @endif
+            </div>
+        </div>
+
+        <!-- Appoint New Patron -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 bg-purple-50">
+                <h3 class="text-lg font-semibold text-purple-800">Appoint New Patron</h3>
+            </div>
+            <div class="p-6">
+                <form action="{{ route('hod.appoint-patron') }}" method="POST" id="appoint-patron-form">
+                    @csrf
+                    <input type="hidden" name="user_id" id="selected-user-id">
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Search by Registration ID or Name</label>
+                        <input type="text" id="user-search" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-transparent"
+                               placeholder="Enter Reg ID or Name...">
+                    </div>
+                    
+                    <!-- Search Results -->
+                    <div id="search-results" class="mb-4 hidden">
+                        <div class="border rounded-lg max-h-48 overflow-y-auto"></div>
+                    </div>
+                    
+                    <!-- Selected User -->
+                    <div id="selected-user" class="mb-4 hidden">
+                        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                            <p class="text-sm text-purple-600 mb-1">Selected User:</p>
+                            <p class="font-semibold text-purple-800" id="selected-user-name"></p>
+                            <p class="text-sm text-purple-600" id="selected-user-reg"></p>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" id="appoint-btn" disabled
+                            class="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-semibold py-3 px-4 rounded-lg transition">
+                        <svg class="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                        </svg>
+                        Appoint as Patron
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- Assignment History -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h3 class="text-lg font-semibold text-gray-800">Patron Assignment History</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reg ID</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Term</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assigned Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    @forelse($patronHistory as $assignment)
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="font-medium text-gray-900">{{ $assignment->user->name }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ $assignment->user->reg_id }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ $assignment->term->term_name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600">{{ $assignment->assigned_at->format('M d, Y') }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            @if($assignment->is_active)
+                                <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Active</span>
+                            @else
+                                <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">Inactive</span>
+                            @endif
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-gray-500">No Patron assignment history found.</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+@endsection
+
+@push('scripts')
+<script>
+let searchTimeout;
+
+document.getElementById('user-search')?.addEventListener('input', function(e) {
+    clearTimeout(searchTimeout);
+    const query = e.target.value;
+    
+    if (query.length < 2) {
+        document.getElementById('search-results').classList.add('hidden');
+        return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+        fetch(`{{ route('hod.search-user-patron') }}?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(users => {
+                const resultsDiv = document.getElementById('search-results');
+                const resultsContainer = resultsDiv.querySelector('div');
+                
+                if (users.length === 0) {
+                    resultsContainer.innerHTML = '<p class="p-3 text-gray-500 text-center">No users found</p>';
+                } else {
+                    resultsContainer.innerHTML = users.map(user => `
+                        <div class="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0" onclick="selectUser(${user.id}, '${user.name}', '${user.reg_id}')">
+                            <p class="font-medium text-gray-800">${user.name}</p>
+                            <p class="text-sm text-gray-500">${user.reg_id} - ${user.email}</p>
+                            <span class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">${user.role}</span>
+                        </div>
+                    `).join('');
+                }
+                
+                resultsDiv.classList.remove('hidden');
+            });
+    }, 300);
+});
+
+function selectUser(id, name, regId) {
+    document.getElementById('selected-user-id').value = id;
+    document.getElementById('selected-user-name').textContent = name;
+    document.getElementById('selected-user-reg').textContent = regId;
+    document.getElementById('selected-user').classList.remove('hidden');
+    document.getElementById('search-results').classList.add('hidden');
+    document.getElementById('user-search').value = '';
+    document.getElementById('appoint-btn').disabled = false;
+}
+</script>
+@endpush

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candidate Profile Submission</title>
+    <!-- Tailwind CSS CDN --><script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f7f7f7; }
+        .btn-primary { background-color: #5d3a8e; transition: background-color 0.2s; }
+        .btn-primary:hover { background-color: #4a2f72; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <div id="form-container" class="max-w-2xl mx-auto">
+        <h2 class="text-3xl font-extrabold text-gray-800 mb-2">Presidential Candidate Profile Submission</h2>
+        <p class="text-gray-600 mb-6">Complete your public profile so voters can make an informed choice.</p>
+
+        <div class="p-4 bg-yellow-50 border border-yellow-300 rounded-xl mb-6 shadow-lg">
+            <p class="font-semibold text-yellow-800 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+                NOTE: This profile will be reviewed by the Patron before being published to the student voting list.
+            </p>
+        </div>
+
+        <!-- This form structure should be recreated inside the main JS file for dynamic rendering -->
+        <form onsubmit="window.handleSubmitCandidateProfile(event)" id="candidate-profile-form" class="bg-white p-8 rounded-xl shadow-lg border-t-4 border-[#5d3a8e]">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <div class="md:col-span-2 border-b pb-4 mb-4">
+                    <h3 class="text-lg font-bold text-gray-800">Candidacy Details</h3>
+                </div>
+
+                <!-- Profile Picture Link (Simulating upload location/link) -->
+                <div class="md:col-span-2">
+                     <label class="block text-gray-700 font-semibold mb-2">Profile Picture Link (For Voter Visibility)</label>
+                    <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9275B7] transition" name="picUrl" type="url" placeholder="Paste a direct URL to your profile photo (e.g., from LinkedIn or Placehold)." required value="https://placehold.co/100x100/9275B7/ffffff?text=CANDIDATE">
+                </div>
+                
+                <!-- Slogan -->
+                <div class="md:col-span-2">
+                    <label class="block text-gray-700 font-semibold mb-2">Personal Slogan (Max 8 words)</label>
+                    <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9275B7] transition" name="slogan" type="text" placeholder="e.g., Leadership through innovation and service." required>
+                </div>
+
+                <!-- Vision and Goals -->
+                <div class="md:col-span-2 border-b pt-4 pb-4 mb-4">
+                    <h3 class="text-lg font-bold text-gray-800">Manifesto: Vision and Goals</h3>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-gray-700 font-semibold mb-2">Vision & Goals (Manifesto) <span class="text-red-500">*</span></label>
+                    <textarea class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9275B7] transition" name="vision" rows="4" placeholder="Describe your plan for the society in the next term. (Max 200 words)" required></textarea>
+                </div>
+                
+                <!-- Experience -->
+                <div class="md:col-span-2">
+                    <label class="block text-gray-700 font-semibold mb-2">Past Society Experience / Achievements</label>
+                    <textarea class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9275B7] transition" name="experience" rows="3" placeholder="List relevant roles or major achievements."></textarea>
+                </div>
+                
+                <!-- NEW SECTION FOR TRANSPARENCY / MULTIPLE LINKS -->
+                <div class="md:col-span-2 border-b pt-4 pb-4 mb-4">
+                    <h3 class="text-lg font-bold text-gray-800">Additional Resources & Team</h3>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-gray-700 font-semibold mb-2">Online Portfolio/GitHub Link (Optional)</label>
+                    <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9275B7] transition" name="portfolio" type="url" placeholder="e.g., GitHub or a Personal Website showcasing work.">
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-gray-700 font-semibold mb-2">Proposed Vice President (VP) Name & Reg ID</label>
+                    <input class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#9275B7] transition" name="vp_name" type="text" placeholder="Name and Reg ID of proposed VP.">
+                </div>
+                
+            </div>
+
+            <button type="submit" class="mt-8 btn-primary text-white font-bold py-3 px-8 rounded-lg shadow-xl transition duration-150 w-full">
+                Submit Profile to Patron for Review
+            </button>
+        </form>
+    </div>
+
+</body>
+</html>
