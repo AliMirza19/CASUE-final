@@ -5,24 +5,7 @@
 @section('page-description', 'Submit a new event proposal for approval')
 
 @section('sidebar')
-    <a href="{{ route('student.dashboard') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-        </svg>
-        Dashboard
-    </a>
-    <a href="{{ route('student.events.index') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-        </svg>
-        My Events
-    </a>
-    <a href="{{ route('student.events.create') }}" class="sidebar-link active flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-        </svg>
-        Request Event
-    </a>
+    @include('partials.student-sidebar')
 @endsection
 
 @section('content')
@@ -63,16 +46,6 @@
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                     @enderror
                 </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Venue *</label>
-                    <input type="text" name="venue" value="{{ old('venue') }}" required
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple"
-                           placeholder="Event location">
-                    @error('venue')
-                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
             </div>
         </div>
         
@@ -96,6 +69,15 @@
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple"
                            placeholder="Enter guest speaker designation">
                     @error('guest_speaker_designation')
+                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Guest Speaker Profile Link (LinkedIn/Website)</label>
+                    <input type="url" name="guest_speaker_profile_link" value="{{ old('guest_speaker_profile_link') }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple"
+                           placeholder="https://linkedin.com/in/username">
+                    @error('guest_speaker_profile_link')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                     @enderror
                 </div>
@@ -123,7 +105,7 @@
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <div class="flex justify-between items-center mb-4">
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-800">Budget Items *</h3>
+                    <h3 class="text-lg font-semibold text-gray-800">Requirements *</h3>
                     <p class="text-gray-600 text-sm">Add all items required for your event</p>
                 </div>
                 <button type="button" onclick="addBudgetItem()" 
@@ -135,31 +117,26 @@
                 </button>
             </div>
             
-            <div id="budgetItems">
-                <!-- Budget items will be added here -->
-            </div>
-            
-            <!-- Grand Total -->
-            <div class="mt-6 pt-4 border-t border-gray-200">
-                <div class="flex justify-end items-center">
-                    <span class="text-lg font-semibold text-gray-800 mr-4">Grand Total:</span>
-                    <span id="grandTotal" class="text-2xl font-bold text-cause-purple">PKR 0</span>
-                </div>
-            </div>
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b">
+                        <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Item Name</th>
+                        <th class="px-4 py-2 text-left text-sm font-medium text-gray-700 w-32">Quantity</th>
+                        <th class="px-4 py-2 text-center text-sm font-medium text-gray-700 w-20">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="budgetItems">
+                    <!-- Budget items will be added here -->
+                </tbody>
+            </table>
         </div>
         
         <!-- Submit Buttons -->
-        <div class="flex justify-end space-x-4">
-            <a href="{{ route('student.events.index') }}" 
-               class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                Cancel
-            </a>
+        <div class="bg-white rounded-lg shadow-md p-6 flex justify-between items-center">
+            <span class="text-gray-600 text-sm italic">Estimated budget will be reviewed by administration.</span>
             <button type="submit" 
-                    class="bg-cause-purple hover:bg-purple-700 text-white px-6 py-2 rounded-lg flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                </svg>
-                Submit Event
+                    class="bg-cause-purple hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-semibold transition-all shadow-lg hover:shadow-purple-200">
+                Submit Event Proposal
             </button>
         </div>
     </form>
@@ -171,68 +148,49 @@
             itemCount++;
             const container = document.getElementById('budgetItems');
             
-            const itemHtml = `
-                <div class="budget-item bg-gray-50 rounded-lg p-4 mb-4" id="item-${itemCount}">
-                    <div class="flex justify-between items-start mb-3">
-                        <span class="text-sm font-medium text-gray-600">Item #${itemCount}</span>
-                        <button type="button" onclick="removeBudgetItem(${itemCount})" class="text-red-500 hover:text-red-700">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Item Name *</label>
-                            <input type="text" name="items[${itemCount}][name]" required
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple"
-                                   placeholder="e.g., Refreshments">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
-                            <input type="number" name="items[${itemCount}][quantity]" min="1" value="1" required
-                                   onchange="calculateTotal()" oninput="calculateTotal()"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple item-quantity">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Unit Rate (PKR) *</label>
-                            <input type="number" name="items[${itemCount}][unit_rate]" min="0" step="0.01" required
-                                   onchange="calculateTotal()" oninput="calculateTotal()"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple item-rate"
-                                   placeholder="0.00">
-                        </div>
-                    </div>
-                </div>
+            const row = document.createElement('tr');
+            row.id = `item-${itemCount}`;
+            row.className = 'budget-item border-b';
+            row.innerHTML = `
+                <td class="px-4 py-2">
+                    <input type="text" name="items[${itemCount}][name]" required
+                           class="w-full px-3 py-1 border border-gray-300 rounded focus:ring-cause-purple focus:border-cause-purple"
+                           placeholder="e.g. Refreshments">
+                </td>
+                <td class="px-4 py-2">
+                    <input type="number" name="items[${itemCount}][quantity]" required min="1"
+                           class="w-full px-3 py-1 border border-gray-300 rounded focus:ring-cause-purple focus:border-cause-purple"
+                           value="1">
+                </td>
+                <td class="px-4 py-2 text-center">
+                    <button type="button" onclick="this.closest('tr').remove()" class="text-red-500 hover:text-red-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </td>
             `;
             
-            container.insertAdjacentHTML('beforeend', itemHtml);
-            calculateTotal();
-        }
-        
-        function removeBudgetItem(id) {
-            const item = document.getElementById(`item-${id}`);
-            if (item) {
-                item.remove();
-                calculateTotal();
-            }
-        }
-        
-        function calculateTotal() {
-            let total = 0;
-            const items = document.querySelectorAll('.budget-item');
-            
-            items.forEach(item => {
-                const quantity = parseFloat(item.querySelector('.item-quantity')?.value) || 0;
-                const rate = parseFloat(item.querySelector('.item-rate')?.value) || 0;
-                total += quantity * rate;
-            });
-            
-            document.getElementById('grandTotal').textContent = 'PKR ' + total.toLocaleString('en-PK', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+            container.appendChild(row);
         }
         
         // Add first item on page load
         document.addEventListener('DOMContentLoaded', function() {
             addBudgetItem();
+        });
+
+        // Prevent double submission
+        document.getElementById('eventForm').addEventListener('submit', function() {
+            const btn = this.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            btn.innerHTML = `
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Submitting...
+            `;
         });
     </script>
 @endsection

@@ -5,24 +5,7 @@
 @section('page-description', 'Add a new academic term')
 
 @section('sidebar')
-    <a href="{{ route('admin.dashboard') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-        </svg>
-        Dashboard
-    </a>
-    <a href="{{ route('admin.terms.index') }}" class="sidebar-link active flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-        </svg>
-        Manage Terms
-    </a>
-    <a href="{{ route('admin.users.index') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-        </svg>
-        Manage Users
-    </a>
+    @include('partials.admin-sidebar')
 @endsection
 
 @section('content')
@@ -42,19 +25,31 @@
             <form action="{{ route('admin.terms.store') }}" method="POST">
                 @csrf
                 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Term Name *</label>
-                    <input type="text" name="term_name" value="{{ old('term_name') }}" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-cause-purple focus:border-cause-purple"
-                        placeholder="e.g., Fall 2025">
-                    @error('term_name')
-                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                    @enderror
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Term Name *</label>
+                        <input type="text" name="term_name" value="{{ old('term_name', $suggestion['term_name']) }}" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-cause-purple focus:border-cause-purple"
+                            placeholder="e.g., 261 - Spring 2026">
+                        @error('term_name')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Term Code *</label>
+                        <input type="text" name="term_code" value="{{ old('term_code', $suggestion['term_code']) }}" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-cause-purple focus:border-cause-purple"
+                            placeholder="e.g., 261">
+                        @error('term_code')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
                 </div>
                 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
-                    <input type="date" name="start_date" value="{{ old('start_date') }}" required
+                    <input type="date" name="start_date" value="{{ old('start_date', $suggestion['start_date']) }}" required
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-cause-purple focus:border-cause-purple">
                     @error('start_date')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
@@ -63,7 +58,7 @@
                 
                 <div class="mb-6">
                     <label class="block text-sm font-medium text-gray-700 mb-2">End Date *</label>
-                    <input type="date" name="end_date" value="{{ old('end_date') }}" required
+                    <input type="date" name="end_date" value="{{ old('end_date', $suggestion['end_date']) }}" required
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-cause-purple focus:border-cause-purple">
                     @error('end_date')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>

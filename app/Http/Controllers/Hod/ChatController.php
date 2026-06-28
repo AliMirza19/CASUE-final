@@ -208,4 +208,27 @@ class ChatController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Generate Meeting Minutes via AI for the chat history.
+     */
+    public function summarize()
+    {
+        try {
+            $user = Auth::user();
+            $termId = $user->current_term_id;
+            
+            $patronAssignment = RoleAssignment::getCurrentPatron($termId);
+            if (!$patronAssignment) {
+                return response()->json(['success' => false, 'message' => 'No Patron assigned.']);
+            }
+
+            $aiService = app(\App\Services\AiMeetingMinutesService::class);
+            return response()->json($aiService->generateMinutes($user->id, $patronAssignment->user_id));
+
+        } catch (\Exception $e) {
+            Log::error('Summarize Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Failed to summarize.'], 500);
+        }
+    }
 }

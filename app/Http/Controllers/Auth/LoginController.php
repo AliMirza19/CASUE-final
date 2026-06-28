@@ -37,9 +37,15 @@ class LoginController extends Controller
         // Attempt to find user by registration ID
         $user = \App\Models\User::where('reg_id', $request->reg_id)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user) {
             throw ValidationException::withMessages([
-                'reg_id' => ['The provided credentials are incorrect.'],
+                'reg_id' => ['No account found with this Registration ID. Please check and try again.'],
+            ]);
+        }
+
+        if (!Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'reg_id' => ['Incorrect Password.'],
             ]);
         }
 
@@ -104,6 +110,11 @@ class LoginController extends Controller
             'sa' => 'sa.dashboard',
             'vc' => 'vc.dashboard',
             'gd' => 'gd.dashboard',
+            'photo' => 'photo.dashboard',
+            'video' => 'video.dashboard',
+            'smt' => 'smt.dashboard',
+            'doc' => 'doc.dashboard',
+            'deco' => 'deco.dashboard',
             'faculty' => 'faculty.dashboard',
         ];
 

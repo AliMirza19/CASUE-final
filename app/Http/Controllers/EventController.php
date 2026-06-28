@@ -138,7 +138,7 @@ class EventController extends Controller
                     $event->items()->create([
                         'item_name' => $itemData['item_name'],
                         'quantity' => $itemData['quantity'],
-                        'unit_rate' => $itemData['unit_rate'],
+                        'total_amount' => $itemData['total_amount'],
                     ]);
                 }
             }

@@ -44,11 +44,11 @@ class UserController extends Controller
             'reg_id' => 'required|string|max:50|unique:users',
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users',
-            'role' => 'required|in:admin,hod,patron,president,student,sa,vc,gd',
+            'role' => 'required|in:admin,hod,patron,president,student,faculty,sa,vc,gd,photo,video,smt,doc,deco',
             'current_term_id' => 'required|exists:academic_terms,id'
         ]);
         
-        User::create([
+        $user = User::create([
             'reg_id' => $request->reg_id,
             'name' => $request->name,
             'email' => $request->email,
@@ -57,6 +57,13 @@ class UserController extends Controller
             'password_changed' => false,
             'current_term_id' => $request->current_term_id
         ]);
+
+        // Handle Profile Data if provided
+        if ($user->role === 'student' && $request->has('student')) {
+            $user->studentProfile()->create($request->input('student'));
+        } elseif ($user->role === 'faculty' && $request->has('faculty')) {
+            $user->facultyProfile()->create($request->input('faculty'));
+        }
         
         return redirect()->route('admin.users.index')
             ->with('success', 'User created successfully! Default password: 123456');
@@ -64,7 +71,7 @@ class UserController extends Controller
     
     public function edit($id)
     {
-        $user = User::findOrFail($id);
+        $user = User::with(['studentProfile', 'facultyProfile'])->findOrFail($id);
         $terms = AcademicTerm::orderBy('created_at', 'desc')->get();
         
         return view('admin.users.edit', compact('user', 'terms'));
@@ -78,7 +85,7 @@ class UserController extends Controller
             'reg_id' => 'required|string|max:50|unique:users,reg_id,' . $id,
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $id,
-            'role' => 'required|in:admin,hod,patron,president,student,sa,vc,gd',
+            'role' => 'required|in:admin,hod,patron,president,student,faculty,sa,vc,gd,photo,video,smt,doc,deco',
             'current_term_id' => 'required|exists:academic_terms,id'
         ]);
         
@@ -89,6 +96,19 @@ class UserController extends Controller
             'role' => $request->role,
             'current_term_id' => $request->current_term_id
         ]);
+
+        // Handle Profile Data
+        if ($user->role === 'student' && $request->has('student')) {
+            $user->studentProfile()->updateOrCreate(
+                ['user_id' => $user->id],
+                $request->input('student')
+            );
+        } elseif ($user->role === 'faculty' && $request->has('faculty')) {
+            $user->facultyProfile()->updateOrCreate(
+                ['user_id' => $user->id],
+                $request->input('faculty')
+            );
+        }
         
         return redirect()->route('admin.users.index')
             ->with('success', 'User updated successfully!');

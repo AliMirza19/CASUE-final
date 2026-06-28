@@ -5,18 +5,7 @@
 @section('page-description', 'View event submission details')
 
 @section('sidebar')
-    <a href="{{ route('student.dashboard') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-        </svg>
-        Dashboard
-    </a>
-    <a href="{{ route('student.events.index') }}" class="sidebar-link active flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-        </svg>
-        My Events
-    </a>
+    @include('partials.student-sidebar')
 @endsection
 
 @section('content')
@@ -44,7 +33,6 @@
                         'president_approved' => 'bg-blue-100 text-blue-800',
                         'pending_patron' => 'bg-yellow-100 text-yellow-800',
                         'pending_hod' => 'bg-yellow-100 text-yellow-800',
-                        'pending_sa' => 'bg-yellow-100 text-yellow-800',
                         'approved' => 'bg-green-100 text-green-800',
                         'rejected' => 'bg-red-100 text-red-800',
                         'revision_needed' => 'bg-orange-100 text-orange-800',
@@ -54,7 +42,6 @@
                         'president_approved' => 'President Approved - Forward to Patron',
                         'pending_patron' => 'Pending Patron Review',
                         'pending_hod' => 'Pending HOD Review',
-                        'pending_sa' => 'Pending SA Review',
                         'approved' => 'Approved',
                         'rejected' => 'Rejected',
                         'revision_needed' => 'Revision Needed',
@@ -77,8 +64,8 @@
                 <p class="font-semibold text-gray-800">{{ $event->venue }}</p>
             </div>
             <div>
-                <p class="text-sm text-gray-500">Grand Total</p>
-                <p class="font-semibold text-cause-purple text-xl">PKR {{ number_format($event->grand_total, 0) }}</p>
+                <p class="text-sm text-gray-500">Status</p>
+                <p class="font-semibold text-gray-800">{{ $statusLabels[$event->status] ?? ucfirst($event->status) }}</p>
             </div>
         </div>
         
@@ -96,6 +83,17 @@
                 <div>
                     <p class="text-sm text-gray-500">Guest Speaker Designation</p>
                     <p class="font-semibold text-gray-800">{{ $event->guest_speaker_designation }}</p>
+                </div>
+                @endif
+                @if($event->guest_speaker_profile_link)
+                <div>
+                    <p class="text-sm text-gray-500">Guest Speaker Profile</p>
+                    <a href="{{ $event->guest_speaker_profile_link }}" target="_blank" class="font-semibold text-cause-purple hover:underline flex items-center">
+                        View Profile
+                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </a>
                 </div>
                 @endif
                 @if($event->facultyMentor)
@@ -157,6 +155,23 @@
                 @if($event->rejection_reason)
                 <p class="text-red-700">Reason: {{ $event->rejection_reason }}</p>
                 @endif
+            </div>
+        </div>
+        @endif
+
+        @if($event->status === 'approved')
+        <div class="mt-6 pt-6 border-t border-gray-200">
+            <div class="bg-green-50 border border-green-200 rounded-lg p-6 flex items-center justify-between">
+                <div>
+                    <h4 class="text-lg font-bold text-green-800">Event Fully Approved!</h4>
+                    <p class="text-green-700 mt-1">Your event has been authorized by the HOD. You can now download the formal approval form.</p>
+                </div>
+                <a href="{{ route('student.events.download-approval', $event->id) }}" target="_blank" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold flex items-center shadow-lg transition-all hover:scale-105">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                    </svg>
+                    Download Approval Form
+                </a>
             </div>
         </div>
         @endif
@@ -224,93 +239,113 @@
     </div>
     @endif
 
-    <!-- Budget Items -->
-    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h3 class="text-lg font-semibold text-gray-800">Budget Items</h3>
+    <!-- Premium Event Requirements / Budget Breakdown -->
+    <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden mb-8">
+        <div class="px-8 py-6 bg-gradient-to-r from-cause-purple to-cause-purple-dark flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-white tracking-tight">Event Requirements & Allocation</h3>
+            </div>
+            @if($event->status === 'approved')
+                <span class="px-3 py-1 bg-green-500/20 text-green-400 text-xs font-black rounded-full backdrop-blur-sm uppercase tracking-widest border border-green-500/30">Finalized</span>
+            @else
+                <span class="px-3 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-black rounded-full backdrop-blur-sm uppercase tracking-widest border border-yellow-500/30">In Review</span>
+            @endif
         </div>
         <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item Name</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Rate</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+            <table class="w-full border-separate border-spacing-0">
+                <thead>
+                    <tr class="bg-gray-50/80">
+                        <th class="px-8 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-gray-100 text-left">Item Name</th>
+                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-gray-100 text-center">Quantity</th>
                         @if($event->status !== 'pending_president')
-                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Patron</th>
-                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">HOD</th>
+                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-gray-100 text-center">Patron Status</th>
+                        <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-gray-100 text-center">HOD Status</th>
                         @endif
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200">
+                <tbody class="divide-y divide-gray-50">
                     @foreach($event->items as $index => $item)
-                    <tr class="{{ (!$item->is_approved_by_patron || ($item->is_approved_by_hod === false)) ? 'bg-red-50/50' : '' }}">
-                        <td class="px-6 py-4 text-gray-600">{{ $index + 1 }}</td>
-                        <td class="px-6 py-4">
-                            <div class="font-medium text-gray-800">{{ $item->item_name }}</div>
+                    @php
+                        $isRejected = (!$item->is_approved_by_patron || ($item->is_approved_by_hod === false));
+                    @endphp
+                    <tr class="group transition-all duration-200 {{ $isRejected ? 'bg-red-50/30' : 'hover:bg-gray-50/50' }}">
+                        <td class="px-8 py-6">
+                            <div class="flex items-center">
+                                <span class="text-xs font-bold text-gray-300 mr-4 tabular-nums">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}</span>
+                                <div>
+                                    <div class="font-bold text-gray-800 text-base {{ $isRejected ? 'text-red-900/70' : '' }}">{{ $item->item_name }}</div>
+                                    @if($item->patron_comment || $item->hod_comment)
+                                        <div class="mt-2 space-y-1">
+                                            @if($item->patron_comment)
+                                                <div class="flex items-start space-x-1">
+                                                    <span class="text-[10px] font-black text-purple-600 uppercase mt-0.5">Patron:</span>
+                                                    <span class="text-xs text-purple-800 italic">"{{ $item->patron_comment }}"</span>
+                                                </div>
+                                            @endif
+                                            @if($item->hod_comment)
+                                                <div class="flex items-start space-x-1">
+                                                    <span class="text-[10px] font-black text-teal-600 uppercase mt-0.5">HOD:</span>
+                                                    <span class="text-xs text-teal-800 italic">"{{ $item->hod_comment }}"</span>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
                         </td>
-                        <td class="px-6 py-4 text-right text-gray-800">{{ $item->quantity }}</td>
-                        <td class="px-6 py-4 text-right text-gray-800 text-sm">
-                            <span class="text-xs text-gray-400 mr-1">PKR</span>{{ number_format($item->unit_rate, 0) }}
-                        </td>
-                        <td class="px-6 py-4 text-right font-bold text-gray-900">
-                            <span class="text-xs text-gray-400 mr-1">PKR</span>{{ number_format($item->total_amount, 0) }}
+                        <td class="px-6 py-6 text-center">
+                            <span class="px-3 py-1 bg-gray-100 rounded-lg text-gray-700 font-bold tabular-nums">{{ $item->quantity }}</span>
                         </td>
                         @if($event->status !== 'pending_president')
-                        <td class="px-6 py-4 text-center">
-                            @if($item->is_approved_by_patron)
-                                <span class="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-[10px] font-bold uppercase">Appr</span>
-                            @else
-                                <span class="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-[10px] font-bold uppercase">Rej</span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 text-center">
-                            @php
-                                $hodReviewed = !in_array($event->status, ['pending_president', 'pending_patron', 'pending_hod']);
-                            @endphp
-                            @if($hodReviewed)
-                                @if($item->is_approved_by_hod)
-                                    <span class="px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-[10px] font-bold uppercase">Appr</span>
+                        <td class="px-6 py-6">
+                            <div class="flex justify-center">
+                                @if($item->is_approved_by_patron)
+                                    <div class="flex items-center text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                                        <span class="text-[10px] font-black uppercase tracking-wider">Approved</span>
+                                    </div>
                                 @else
-                                    <span class="px-2 py-0.5 bg-red-100 text-red-800 rounded-full text-[10px] font-bold uppercase">Rej</span>
-                                @endif
-                            @else
-                                <span class="px-2 py-0.5 bg-gray-100 text-gray-400 rounded-full text-[10px] font-bold uppercase">Wait</span>
-                            @endif
-                        </td>
-                        @endif
-                    </tr>
-                    @if($item->patron_comment || $item->hod_comment)
-                    <tr class="bg-gray-50">
-                        <td colspan="{{ $event->status !== 'pending_president' ? 7 : 5 }}" class="px-6 py-2">
-                            <div class="space-y-1">
-                                @if($item->patron_comment)
-                                <div class="text-xs text-purple-800">
-                                    <strong>Patron:</strong> {{ $item->patron_comment }}
-                                </div>
-                                @endif
-                                @if($item->hod_comment)
-                                <div class="text-xs text-green-800">
-                                    <strong>HOD:</strong> {{ $item->hod_comment }}
-                                </div>
+                                    <div class="flex items-center text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-100">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                                        <span class="text-[10px] font-black uppercase tracking-wider">Rejected</span>
+                                    </div>
                                 @endif
                             </div>
                         </td>
-                    </tr>
-                    @endif
-                    @endforeach
-                </tbody>
-                <tfoot class="bg-gray-50">
-                    <tr>
-                        <td colspan="4" class="px-6 py-4 text-right font-semibold text-gray-800">Grand Total:</td>
-                        <td class="px-6 py-4 text-right font-bold text-cause-purple text-lg">PKR {{ number_format($event->grand_total, 0) }}</td>
-                        @if($event->status !== 'pending_president')
-                        <td colspan="2"></td>
+                        <td class="px-6 py-6">
+                            <div class="flex justify-center">
+                                @php
+                                    $hodReviewed = !in_array($event->status, ['pending_president', 'pending_patron', 'pending_hod']);
+                                @endphp
+                                @if($hodReviewed)
+                                    @if($item->is_approved_by_hod)
+                                        <div class="flex items-center text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100">
+                                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                                            <span class="text-[10px] font-black uppercase tracking-wider">Approved</span>
+                                        </div>
+                                    @else
+                                        <div class="flex items-center text-red-600 bg-red-50 px-3 py-1 rounded-full border border-red-100">
+                                            <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                                            <span class="text-[10px] font-black uppercase tracking-wider">Rejected</span>
+                                        </div>
+                                    @endif
+                                @else
+                                    <div class="flex items-center text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
+                                        <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg>
+                                        <span class="text-[10px] font-black uppercase tracking-wider">Awaiting Review</span>
+                                    </div>
+                                @endif
+                            </div>
+                        </td>
                         @endif
                     </tr>
-                </tfoot>
+                    @endforeach
+                </tbody>
             </table>
         </div>
     </div>
@@ -324,7 +359,7 @@
                     ['key' => 'pending_president', 'label' => 'President', 'icon' => '👤'],
                     ['key' => 'pending_patron', 'label' => 'Patron', 'icon' => '👨‍🏫'],
                     ['key' => 'pending_hod', 'label' => 'HOD', 'icon' => '👨‍💼'],
-                    ['key' => 'pending_sa', 'label' => 'SA', 'icon' => '🏛️'],
+
                     ['key' => 'approved', 'label' => 'Approved', 'icon' => '✅'],
                 ];
                 $currentIndex = array_search($event->status, array_column($steps, 'key'));

@@ -184,6 +184,87 @@ class RoleAssignment extends Model
     }
 
     /**
+     * Get current assignment for a specific role in a term.
+     */
+    public static function getCurrentRole($termId, $role)
+    {
+        return self::where('term_id', $termId)
+            ->where('role', $role)
+            ->where('is_active', true)
+            ->with('user')
+            ->first();
+    }
+
+    /**
+     * Get previous term's assignment for a specific role.
+     */
+    public static function getPreviousRole($currentTermId, $role)
+    {
+        $currentTerm = AcademicTerm::find($currentTermId);
+        
+        if (!$currentTerm) {
+            return null;
+        }
+
+        $previousTerm = AcademicTerm::where('start_date', '<', $currentTerm->start_date)
+            ->orderBy('start_date', 'desc')
+            ->first();
+        
+        if (!$previousTerm) {
+            return null;
+        }
+        
+        return self::where('term_id', $previousTerm->id)
+            ->where('role', $role)
+            ->where('is_active', true)
+            ->with('user')
+            ->first();
+    }
+
+    /**
+     * Assign a specific role to a user for a term.
+     */
+    public static function assignRole($userId, $termId, $role, $assignedBy = null)
+    {
+        // Get previous assignment for this term and role (if any)
+        $previous = self::where('term_id', $termId)
+            ->where('role', $role)
+            ->where('is_active', true)
+            ->first();
+        
+        // Deactivate any existing assignment for this term
+        self::where('term_id', $termId)
+            ->where('role', $role)
+            ->update(['is_active' => false]);
+            
+        // Also revert the role of the previous user in the users table to 'student' (if they are a student role)
+        if ($previous && in_array($role, ['gd', 'photo', 'video', 'doc', 'deco', 'smt', 'sa'])) {
+            $prevUser = User::find($previous->user_id);
+            if ($prevUser && $prevUser->role === $role) {
+                $prevUser->update(['role' => 'student']);
+            }
+        }
+        
+        // Create new assignment
+        $assignment = self::create([
+            'user_id' => $userId,
+            'term_id' => $termId,
+            'role' => $role,
+            'assigned_by' => $assignedBy,
+            'assigned_at' => now(),
+            'is_active' => true,
+        ]);
+        
+        // Update user's role in the users table
+        $user = User::find($userId);
+        if ($user) {
+            $user->update(['role' => $role]);
+        }
+        
+        return $assignment;
+    }
+
+    /**
      * Get assignment history for a role.
      */
     public static function getHistory($role, $limit = 10)

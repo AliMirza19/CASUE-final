@@ -5,12 +5,25 @@
 @section('page-description', 'Stay updated with your event requests')
 
 @section('sidebar')
-    <a href="{{ route('student.dashboard') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-        </svg>
-        Dashboard
-    </a>
+    @php
+        $user = auth()->user();
+        $sidebar = 'student-sidebar'; // Default
+        
+        if ($user->role === 'admin') $sidebar = 'admin-sidebar';
+        elseif ($user->role === 'hod') $sidebar = 'hod-sidebar';
+        elseif ($user->role === 'patron') $sidebar = 'patron-sidebar';
+        elseif ($user->role === 'president') $sidebar = 'president-sidebar';
+        elseif ($user->role === 'faculty') $sidebar = 'faculty-sidebar';
+        elseif ($user->role === 'vc') $sidebar = 'vc-sidebar';
+        elseif (in_array($user->role, ['gd', 'photo', 'video', 'smt', 'doc', 'deco', 'sa'])) $sidebar = 'team-sidebar';
+        
+        // Special case for faculty who are HOD/Patron
+        if ($user->role === 'faculty') {
+            if ($user->isAppointedHod()) $sidebar = 'hod-sidebar';
+            elseif ($user->isAppointedPatron()) $sidebar = 'patron-sidebar';
+        }
+    @endphp
+    @include('partials.' . $sidebar)
 @endsection
 
 @section('content')
@@ -18,7 +31,7 @@
         <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h3 class="text-lg font-semibold text-gray-800">Recent Notifications</h3>
             @if($notifications->count() > 0)
-            <form action="{{ route('student.notifications.readAll') }}" method="POST">
+            <form action="{{ route('notifications.readAll') }}" method="POST">
                 @csrf
                 <button type="submit" class="text-sm text-cause-purple hover:text-cause-purple-dark hover:underline">Mark all as read</button>
             </form>
@@ -31,16 +44,26 @@
                     <div class="p-6 hover:bg-gray-50 {{ $notification->read_at ? '' : 'bg-blue-50' }}">
                         <div class="flex items-start">
                             <div class="flex-shrink-0 mr-4">
-                                @if($notification->data['type'] == 'success')
+                                @php
+                                    // Determine icon type from either 'notification_type' (user imports) or 'type' (events)
+                                    $iconType = $notification->data['notification_type'] ?? $notification->data['type'] ?? 'info';
+                                @endphp
+                                @if($iconType == 'success')
                                     <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
                                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                                         </svg>
                                     </div>
-                                @elseif($notification->data['type'] == 'error' || $notification->data['type'] == 'warning')
+                                @elseif($iconType == 'error')
                                     <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600">
                                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </div>
+                                @elseif($iconType == 'warning')
+                                    <div class="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
                                         </svg>
                                     </div>
                                 @else
@@ -53,7 +76,11 @@
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p class="text-sm font-medium text-gray-900">
-                                    {{ $notification->data['event_title'] ?? 'Event Update' }}
+                                    @if(($notification->data['type'] ?? '') === 'user_import')
+                                        {{ $notification->data['method'] === 'bulk' ? 'Bulk User Upload' : ucfirst($notification->data['import_type'] ?? 'User') . ' Registration' }}
+                                    @else
+                                        {{ $notification->data['event_title'] ?? $notification->data['message'] ?? 'Notification' }}
+                                    @endif
                                 </p>
                                 <p class="text-sm text-gray-500 mt-1">
                                     {{ $notification->data['message'] }}
@@ -63,7 +90,7 @@
                                 </p>
                             </div>
                             <div class="ml-4 flex-shrink-0">
-                                <a href="{{ route('student.notifications.read', $notification->id) }}" class="text-sm font-medium text-cause-purple hover:text-cause-purple-dark">
+                                <a href="{{ route('notifications.read', $notification->id) }}" class="text-sm font-medium text-cause-purple hover:text-cause-purple-dark">
                                     View Details
                                 </a>
                             </div>

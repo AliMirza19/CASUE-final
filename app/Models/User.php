@@ -32,6 +32,14 @@ class User extends Authenticatable
         'contact_number',
         'father_name',
         'current_semester',
+        'skills',
+        'experience',
+        'is_volunteer_pool',
+        'digital_signature',
+        'digital_stamp',
+        'profile_picture',
+        'mailing_address',
+        'academic_rank',
     ];
 
     /**
@@ -55,6 +63,33 @@ class User extends Authenticatable
             'password' => 'hashed',
             'password_changed' => 'boolean',
         ];
+    }
+
+    /**
+     * Send the password reset notification.
+     *
+     * @param  string  $token
+     * @return void
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new \App\Notifications\CustomResetPasswordNotification($token));
+    }
+
+    public function teams(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Team::class)->withPivot('is_lead')->withTimestamps();
+    }
+
+    public function chatGroups(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(ChatGroup::class, 'chat_group_members')->withPivot('role')->withTimestamps();
+    }
+
+    public function currentTeamType(): ?string
+    {
+        $team = $this->teams()->latest()->first();
+        return $team ? $team->type : null;
     }
 
     /**
@@ -114,6 +149,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get all events this student is assigned to as a volunteer.
+     */
+    public function volunteerRoles(): HasMany
+    {
+        return $this->hasMany(Volunteer::class);
+    }
+
+    /**
      * Get all announcements created by this user.
      */
     public function announcements(): HasMany
@@ -138,11 +181,34 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the currently active role for the user session.
+     */
+    public function getActiveRole(): string
+    {
+        $activeRole = session('active_role');
+        if ($activeRole) {
+            return $activeRole;
+        }
+
+        // If no active role is set in session, determine their primary role
+        if ($this->role === 'faculty') {
+            if ($this->isAppointedHod()) {
+                return 'hod';
+            }
+            if ($this->isAppointedPatron()) {
+                return 'patron';
+            }
+        }
+
+        return $this->role;
+    }
+
+    /**
      * Check if user has a specific role.
      */
     public function hasRole(string $role): bool
     {
-        return $this->role === $role;
+        return $this->getActiveRole() === $role;
     }
 
     /**
@@ -181,17 +247,27 @@ class User extends Authenticatable
      * Get the display role for the user.
      * If faculty user is appointed as HOD/Patron, return that role.
      */
-    public function getDisplayRole(): string
+    public function getDisplayRole(string $roleOverride = null): string
     {
-        if ($this->isAppointedHod()) {
-            return 'HOD';
-        }
+        $role = $roleOverride ?? $this->getActiveRole();
         
-        if ($this->isAppointedPatron()) {
-            return 'Patron';
-        }
-        
-        return ucfirst($this->role);
+        return match($role) {
+            'admin'     => 'Admin',
+            'president' => 'President',
+            'student'   => 'Student',
+            'sa'        => 'General Secretary',
+            'vc'        => 'Volunteer Coordinator',
+            'gd'        => 'Graphic Designer',
+            'faculty'   => 'Faculty',
+            'photo'     => 'Photography Team',
+            'video'     => 'Videography Team',
+            'smt'       => 'Social Media Team',
+            'doc'       => 'Documentation Team',
+            'deco'      => 'Decoration Team',
+            'hod'       => 'HOD',
+            'patron'    => 'Patron',
+            default     => ucfirst($role),
+        };
     }
 
     /**
@@ -208,14 +284,19 @@ class User extends Authenticatable
         }
         
         return match($this->role) {
-            'admin' => 'bg-red-100 text-red-800',
+            'admin'     => 'bg-red-100 text-red-800',
             'president' => 'bg-blue-100 text-blue-800',
-            'student' => 'bg-green-100 text-green-800',
-            'sa' => 'bg-indigo-100 text-indigo-800',
-            'vc' => 'bg-pink-100 text-pink-800',
-            'gd' => 'bg-yellow-100 text-yellow-800',
-            'faculty' => 'bg-teal-100 text-teal-800',
-            default => 'bg-gray-100 text-gray-800',
+            'student'   => 'bg-green-100 text-green-800',
+            'sa'        => 'bg-indigo-100 text-indigo-800',
+            'vc'        => 'bg-pink-100 text-pink-800',
+            'gd'        => 'bg-yellow-100 text-yellow-800',
+            'faculty'   => 'bg-teal-100 text-teal-800',
+            'photo'     => 'bg-cyan-100 text-cyan-800',
+            'video'     => 'bg-rose-100 text-rose-800',
+            'smt'       => 'bg-fuchsia-100 text-fuchsia-800',
+            'doc'       => 'bg-sky-100 text-sky-800',
+            'deco'      => 'bg-lime-100 text-lime-800',
+            default     => 'bg-gray-100 text-gray-800',
         };
     }
 
@@ -245,5 +326,21 @@ class User extends Authenticatable
         
         $assignment = RoleAssignment::getCurrentPatron($activeTerm->id);
         return $assignment && $assignment->user_id === $this->id;
+    }
+
+    /**
+     * Get the student profile associated with the user.
+     */
+    public function studentProfile(): HasOne
+    {
+        return $this->hasOne(StudentProfile::class);
+    }
+
+    /**
+     * Get the faculty profile associated with the user.
+     */
+    public function facultyProfile(): HasOne
+    {
+        return $this->hasOne(FacultyProfile::class);
     }
 }

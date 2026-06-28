@@ -18,6 +18,12 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        $announcements = \App\Models\Announcement::with('creator')->latest()->take(6)->get();
+        return view('dashboards.hod', compact('announcements'));
+    }
+
+    public function overview()
+    {
         $user = Auth::user();
         
         // Get active term instead of user's current_term_id
@@ -40,7 +46,7 @@ class DashboardController extends Controller
         // Stats
         $totalPending = $pendingEvents->count();
         $totalApproved = Event::where('term_id', $termId)
-            ->whereIn('status', ['pending_sa', 'approved'])
+            ->where('status', 'approved')
             ->count();
         $totalRejected = Event::where('term_id', $termId)
             ->where('status', 'rejected')
@@ -54,7 +60,7 @@ class DashboardController extends Controller
         // Recent approved events
         $recentApproved = Event::with('student')
             ->where('term_id', $termId)
-            ->whereIn('status', ['pending_sa', 'approved'])
+            ->where('status', 'approved')
             ->orderBy('updated_at', 'desc')
             ->limit(5)
             ->get();
@@ -73,7 +79,7 @@ class DashboardController extends Controller
             $unreadMessageCount = Message::getUnreadCount($user->id, $currentPatronAssignment->user_id);
         }
         
-        return view('dashboards.hod', compact(
+        return view('hod.overview', compact(
             'currentTerm',
             'budget',
             'pendingEvents',
@@ -137,8 +143,76 @@ class DashboardController extends Controller
     {
         $event = Event::with(['student', 'items', 'facultyMentor'])->findOrFail($id);
         $budget = Budget::where('term_id', Auth::user()->current_term_id)->first();
+
+        // Refresh AI Risk if it was previously "offline" or invalid
+        if (!$event->risk_assessment || 
+            ($event->risk_assessment['risk_level'] ?? '') === 'N/A' || 
+            ($event->risk_assessment['risk_level'] ?? '') === 'Error' ||
+            str_contains(($event->risk_assessment['suggestions'] ?? ''), 'Update .env')) {
+            
+            $riskData = app(\App\Services\AiRiskService::class)->assessEventRisk($event);
+            if ($riskData['risk_level'] !== 'Unknown') {
+                $event->risk_assessment = $riskData;
+                $event->save();
+            }
+        }
         
-        return view('hod.review-event', compact('event', 'budget'));
+        $aiAnalysis = app(\App\Services\AiDecisionSupportService::class)->analyzeEventBudget($event, 'hod');
+        
+        return view('hod.review-event', compact('event', 'budget', 'aiAnalysis'));
+    }
+
+    /**
+     * Show final approval form with signature options.
+     */
+    public function finalApprovalForm(Request $request, $id)
+    {
+        $event = Event::with(['student', 'items', 'facultyMentor'])->findOrFail($id);
+        $budget = Budget::where('term_id', Auth::user()->current_term_id)->first();
+        $user = Auth::user();
+
+        // If it's a rejection, bypass the final form
+        if ($request->action === 'reject') {
+            return $this->approveEvent($request, $id);
+        }
+
+        // Validate items and calculate grand total first
+        if ($request->has('items')) {
+            foreach ($request->items as $itemId => $itemData) {
+                $item = $event->items->find($itemId);
+                if ($item) {
+                    $newQty = isset($itemData['quantity']) && $itemData['quantity'] !== '' ? (int)$itemData['quantity'] : $item->quantity;
+                    $newRate = isset($itemData['unit_rate']) && $itemData['unit_rate'] !== '' ? (float)$itemData['unit_rate'] : $item->unit_rate;
+                    
+                    $item->quantity = $newQty;
+                    $item->unit_rate = $newRate;
+                    $item->total_amount = $newQty * $newRate;
+                    
+                    $item->is_approved_by_hod = isset($itemData['is_approved_by_hod']) ? ($itemData['is_approved_by_hod'] == '1') : $item->is_approved_by_hod;
+                    $item->hod_comment = $itemData['hod_comment'] ?? null;
+                    $item->save();
+                }
+            }
+        }
+
+        // Recalculate event grand total
+        $event->grand_total = $event->items()
+            ->where('is_approved_by_patron', true)
+            ->where('is_approved_by_hod', true)
+            ->sum('total_amount');
+        $event->save();
+
+        if (!$budget) {
+            return back()->with('error', 'No budget found for this term.');
+        }
+
+        if ($budget->remaining_amount < $event->grand_total) {
+            return back()->with('error', 'Insufficient budget!');
+        }
+
+        $comments = $request->comments;
+
+        return view('hod.final-approval-form', compact('event', 'budget', 'user', 'comments'));
     }
     
     public function approveEvent(Request $request, $id)
@@ -146,94 +220,137 @@ class DashboardController extends Controller
         $request->validate([
             'action' => 'required|in:approve,reject',
             'comments' => 'nullable|string|max:1000',
-            'items' => 'nullable|array',
-            'items.*.quantity' => 'nullable|integer|min:0',
-            'items.*.unit_rate' => 'nullable|numeric|min:0'
+            'digital_signature' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
         
         $event = Event::with('items')->findOrFail($id);
         $budget = Budget::where('term_id', Auth::user()->current_term_id)->first();
-        $changes = [];
-        
-        if ($request->has('items')) {
-            foreach ($request->items as $itemId => $itemData) {
-                $item = $event->items->find($itemId);
-                if ($item) {
-                    $oldQty = $item->quantity;
-                    $oldRate = $item->unit_rate;
-                    $oldDecision = $item->is_approved_by_hod;
-                    
-                    $newQty = isset($itemData['quantity']) && $itemData['quantity'] !== '' ? (int)$itemData['quantity'] : $oldQty;
-                    $newRate = isset($itemData['unit_rate']) && $itemData['unit_rate'] !== '' ? (float)$itemData['unit_rate'] : $oldRate;
-                    $newDecision = isset($itemData['is_approved_by_hod']) ? ($itemData['is_approved_by_hod'] == '1') : $oldDecision;
-                    
-                    // Update item
-                    $item->quantity = $newQty;
-                    $item->unit_rate = $newRate;
-                    $item->is_approved_by_hod = $newDecision;
-                    $item->hod_comment = $itemData['hod_comment'] ?? null;
-                    $item->save();
-                    
-                        // Track changes
-                        if ($oldQty != $newQty || $oldRate != $newRate || $oldDecision != $newDecision) {
-                            $changeDetails = "({$newQty} x {$newRate})";
-                            if (!$newDecision) $changeDetails = "REMOVED FROM BUDGET";
-                            $changes[] = "- {$item->item_name}: {$changeDetails}";
-                        }
-                }
-            }
+        $user = Auth::user();
+
+        // Handle signature upload if provided
+        if ($request->hasFile('digital_signature')) {
+            $path = $request->file('digital_signature')->store('signatures', 'public');
+            $user->digital_signature = $path;
+            $user->save();
         }
-        
-        // Recalculate event grand total based on items approved by both Patron and HOD
-        $event->grand_total = $event->items()
-            ->where('is_approved_by_patron', true)
-            ->where('is_approved_by_hod', true)
-            ->sum('total_amount');
+
         
         if ($request->action === 'approve') {
-            // Check budget
-            if ($budget && $event->grand_total > $budget->remaining_amount) {
-                return back()->with('error', 'Insufficient budget for this event after adjustments!');
+            // Check if user has signature
+            if (!$user->digital_signature) {
+                return back()->with('error', 'Digital signature is required for final approval.');
+            }
+
+            // Recalculate event grand total based on items approved by both Patron and HOD
+            $event->grand_total = $event->items()
+                ->where('is_approved_by_patron', true)
+                ->where('is_approved_by_hod', true)
+                ->sum('total_amount');
+            
+            // Final Approval Logic (Migrated from Student Affairs)
+            if (!$budget) {
+                return back()->with('error', 'No budget found for this term. Please set up the budget first.');
             }
             
-            // NOTE: Budget deduction moved to Student Affairs approval stage.
-            // if ($budget) {
-            //     $budget->remaining_amount -= $event->grand_total;
-            //     $budget->save();
-            // }
+            // Check if sufficient budget available
+            if ($budget->remaining_amount < $event->grand_total) {
+                return back()->with('error', 'Insufficient budget! Required: ' . number_format($event->grand_total, 2) . ', Available: ' . number_format($budget->remaining_amount, 2));
+            }
             
-            $event->status = 'pending_sa';
+            // Deduct from budget
+            $budget->remaining_amount -= $event->grand_total;
+            $budget->save();
+            
+            // Final Approve event
+            $event->status = 'approved';
             $event->hod_comments = $request->comments;
+            
+            // Save signature settings
+            $event->signature_settings = [
+                'sig_scale' => $request->sig_scale,
+                'sig_y' => $request->sig_y,
+                'stamp_scale' => $request->stamp_scale,
+                'stamp_rotate' => $request->stamp_rotate,
+                'stamp_x' => $request->stamp_x,
+                'stamp_y' => $request->stamp_y,
+            ];
+            
             $event->save();
-            
-            // Notify student of HOD adjustments
-            if (!empty($changes)) {
-                Message::create([
-                    'sender_id' => Auth::id(),
-                    'receiver_id' => $event->student_id,
-                    'message_text' => "Your event \"{$event->title}\" has finalized budget review by HOD with the following adjustments:\n\n" . implode("\n", $changes) . "\n\nComments: " . ($request->comments ?? 'No additional comments.'),
-                    'is_read' => false,
-                ]);
-            }
-            
-            // Notification message
-            $notifyMessage = "Your event '{$event->title}' has been approved by the HOD.";
-            $notifyType = 'success';
-            
-            if (!empty($changes)) {
-                $notifyMessage .= " Budget adjustments were made.";
-                $notifyType = 'warning';
-            }
             
             // Notify student
             $event->student->notify(new EventStatusUpdated(
-                $event,
-                $notifyMessage,
-                $notifyType
+            $event,
+                "Congratulations! Your event '{$event->title}' has been fully approved by the HOD.",
+                'success'
             ));
             
+            // Add President as Admin
+            $presidentAssignment = \App\Models\RoleAssignment::where('term_id', $event->term_id)
+                ->where('role', 'president')
+                ->where('is_active', true)
+                ->first();
+            $president = $presidentAssignment ? $presidentAssignment->user : \App\Models\User::where('role', 'president')->first();
+            if ($president) {
+                $president->notify(new EventStatusUpdated(
+                    $event,
+                    "Event '{$event->title}' is fully approved! You can now assign tasks to teams.",
+                    'info'
+                ));
+            }
+
+            // Notify Volunteer Coordinator to select volunteers
+            $vc = \App\Models\User::where('role', 'vc')->first();
+            if ($vc) {
+                $vc->notify(new EventStatusUpdated(
+                    $event,
+                    "Event '{$event->title}' is approved! Please select volunteers for this event and send to President.",
+                    'info'
+                ));
+            }
+
+            // --- AUTOMATIC CHAT GROUP CREATION ---
+            $chatGroup = \App\Models\ChatGroup::create([
+                'event_id' => $event->id,
+                'name' => "Chat: " . $event->title,
+            ]);
+
+            // Add President as Admin
+            if ($president) {
+                \App\Models\ChatGroupMember::create([
+                    'chat_group_id' => $chatGroup->id,
+                    'user_id' => $president->id,
+                    'role' => 'admin',
+                ]);
+            }
+
+            // Add Event Owner (Student)
+            \App\Models\ChatGroupMember::create([
+                'chat_group_id' => $chatGroup->id,
+                'user_id' => $event->student_id,
+                'role' => 'member',
+            ]);
+
+            // Add current team leads for this term
+            $teamRoles = ['gd', 'vc', 'smt', 'photo', 'video', 'doc', 'deco', 'sa'];
+            foreach ($teamRoles as $roleKey) {
+                $assignment = \App\Models\RoleAssignment::where('term_id', $event->term_id)
+                    ->where('role', $roleKey)
+                    ->where('is_active', true)
+                    ->first();
+                
+                if ($assignment) {
+                    \App\Models\ChatGroupMember::updateOrCreate(
+                        ['chat_group_id' => $chatGroup->id, 'user_id' => $assignment->user_id],
+                        ['role' => 'member']
+                    );
+                }
+            }
+            
+            // Archive Signed Approval Form
+            $this->archiveApprovalForm($event);
+            
             return redirect()->route('hod.dashboard')
-                ->with('success', 'Event approved, budget finalized, and forwarded to Student Affairs!');
+                ->with('success', 'Event fully approved and budget deducted!');
         } else {
             $event->status = 'rejected';
             $event->hod_comments = $request->comments;
@@ -452,9 +569,10 @@ class DashboardController extends Controller
      * Show profile page.
      */
     public function profile()
+    
     {
-        $user = Auth::user();
-        return view('hod.profile', compact('user'));
+        $user = \Illuminate\Support\Facades\Auth::user();
+        return view('profile.show', compact('user'));
     }
     
     /**
@@ -536,18 +654,35 @@ class DashboardController extends Controller
         $financialService = new FinancialAnalyticsService();
         $financialReport = $financialService->generateFinancialReport($termId);
         
-        // Generate filename with timestamp
-        $filename = 'Financial_Summary_' . ($activeTerm ? str_replace(' ', '_', $activeTerm->term_name) : 'Current_Term') . '_' . now()->format('Y-m-d_H-i-s') . '.html';
+        // Generate filename
+        $filename = 'Financial_Summary_' . ($activeTerm ? str_replace(' ', '_', $activeTerm->term_name) : 'Current_Term') . '_' . now()->format('Y-m-d') . '.html';
         
-        // Return HTML view with PDF-friendly headers
+        // Render view
         $html = view('hod.financial-summary-pdf', compact('financialReport', 'activeTerm'))->render();
+        
+        // ARCHIVE IT TOO
+        $filename = 'financial_reports/Financial_Report_' . $termId . '_' . time() . '.html';
+        \Illuminate\Support\Facades\Storage::disk('public')->put($filename, $html);
+
+        \App\Models\EventDocument::updateOrCreate(
+            [
+                'term_id'           => $termId,
+                'doc_type'          => 'financial_report',
+                'original_filename' => $filename, // Use unique name as key or similar
+            ],
+            [
+                'event_id'          => null,
+                'uploaded_by'       => Auth::id(),
+                'file_path'         => $filename,
+                'original_filename' => 'Term_Financial_Report_' . now()->format('Y_m_d') . '.html',
+                'description'       => "Institutional Financial Summary for " . ($activeTerm ? $activeTerm->term_name : 'Current Term'),
+                'visible_to_roles'  => ['admin', 'hod', 'patron'],
+            ]
+        );
         
         return response($html)
             ->header('Content-Type', 'text/html')
-            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
-            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
-            ->header('Pragma', 'no-cache')
-            ->header('Expires', '0');
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
     }
 
     /**
@@ -573,4 +708,72 @@ class DashboardController extends Controller
         
         return response()->json($analytics);
     }
+
+    /**
+     * Show HOD settings page for signature management.
+     */
+    public function settings()
+    {
+        $user = Auth::user();
+        return view('hod.settings', compact('user'));
+    }
+
+    /**
+     * Update HOD digital assets.
+     */
+    public function updateSettings(Request $request)
+    {
+        $request->validate([
+            'digital_signature' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        $user = Auth::user();
+
+        if ($request->hasFile('digital_signature')) {
+            $path = $request->file('digital_signature')->store('signatures', 'public');
+            $user->digital_signature = $path;
+        }
+
+
+
+        $user->save();
+
+        return back()->with('success', 'Digital assets updated successfully.');
+    }
+
+    /**
+     * Archive the Signed Approval Form as a static snapshot.
+     */
+    private function archiveApprovalForm(Event $event)
+    {
+        // Get HOD for the event's term
+        $hodAssignment = \App\Models\RoleAssignment::getCurrentHod($event->term_id);
+        $hod = $hodAssignment ? $hodAssignment->user : Auth::user();
+
+        // Render the approval PDF view
+        $html = view('student.events.pdf-approval', compact('event', 'hod'))->render();
+        
+        // Save to storage
+        $filename = 'approval_forms/Approval_' . $event->id . '_' . time() . '.html';
+        \Illuminate\Support\Facades\Storage::disk('public')->put($filename, $html);
+
+        // Create document entry
+        \App\Models\EventDocument::updateOrCreate(
+            [
+                'event_id' => $event->id,
+                'doc_type' => 'approval_form',
+            ],
+            [
+                'term_id'           => $event->term_id,
+                'uploaded_by'       => Auth::id(),
+                'file_path'         => $filename,
+                'original_filename' => 'Signed_Approval_Form.html',
+                'description'       => "Official Signed Approval Form for event: {$event->title}",
+                'visible_to_roles'  => ['admin', 'hod', 'patron', 'president', 'student'],
+            ]
+        );
+    }
 }
+
+
+

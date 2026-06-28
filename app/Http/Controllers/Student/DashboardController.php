@@ -15,6 +15,12 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        $announcements = \App\Models\Announcement::with('creator')->latest()->take(6)->get();
+        return view('dashboards.student', compact('announcements'));
+    }
+
+    public function overview()
+    {
         $user = Auth::user();
         
         // Get active term
@@ -66,7 +72,7 @@ class DashboardController extends Controller
         // Check if system is active (budget set)
         $systemActive = true; // Will be implemented with budget check
         
-        return view('dashboards.student', compact(
+        return view('student.overview', compact(
             'totalEvents',
             'approvedEvents',
             'pendingEvents',
@@ -78,5 +84,65 @@ class DashboardController extends Controller
             'recentActivities',
             'systemActive'
         ));
+    }
+
+    public function profile()
+    
+    {
+        $user = \Illuminate\Support\Facades\Auth::user();
+        return view('profile.show', compact('user'));
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = Auth::user();
+        $request->validate([
+            'cnic' => 'nullable|string|max:15',
+            'contact_number' => 'nullable|string|max:20',
+            'father_name' => 'nullable|string|max:255',
+            'current_semester' => 'nullable|string|max:20',
+            'skills' => 'nullable|string|max:1000',
+            'experience' => 'nullable|string|max:1000',
+        ]);
+
+        $user->update($request->all());
+
+        return back()->with('success', 'Profile updated successfully!');
+    }
+
+    public function faq()
+    {
+        return view('student.faq');
+    }
+
+    public function joinVolunteerPool(Request $request)
+    {
+        $user = Auth::user();
+        
+        if ($user->is_volunteer_pool) {
+            $user->update(['is_volunteer_pool' => false]);
+            return back()->with('success', 'You have left the Volunteer Pool.');
+        } else {
+            $user->update(['is_volunteer_pool' => true]);
+            
+            // Notify Student
+            $user->notify(new \App\Notifications\VolunteerPoolNotification(
+                $user,
+                "You have successfully joined the Volunteer Pool! Your profile is now visible to the Volunteer Coordinator.",
+                'success'
+            ));
+            
+            // Find and Notify Volunteer Coordinator(s)
+            $vcs = \App\Models\User::where('role', 'vc')->get();
+            foreach ($vcs as $vc) {
+                $vc->notify(new \App\Notifications\VolunteerPoolNotification(
+                    $user,
+                    "Student {$user->name} ({$user->reg_id}) has joined the Volunteer Pool and is ready for selection.",
+                    'info'
+                ));
+            }
+            
+            return back()->with('success', 'You have successfully joined the Volunteer Pool! The Volunteer Coordinator has been notified.');
+        }
     }
 }

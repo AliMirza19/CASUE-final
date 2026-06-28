@@ -14,7 +14,7 @@ class RoleMiddleware
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-    public function handle(Request $request, Closure $next, string $role): Response
+    public function handle(Request $request, Closure $next, ...$roles): Response
     {
         // Check if user is authenticated
         if (!Auth::check()) {
@@ -22,29 +22,98 @@ class RoleMiddleware
         }
 
         $user = Auth::user();
-
-        // Check if user has the required role
-        $hasAccess = $user->role === $role;
+        $allowedRoles = $roles; // $roles is already an array thanks to ...$roles
         
-        // Special handling for HOD and Patron roles
-        // ONLY appointed faculty users should have access to HOD/Patron routes
-        if ($role === 'hod') {
-            // For HOD routes, ONLY appointed HOD can access
-            $hasAccess = $user->isAppointedHod();
-        } elseif ($role === 'patron') {
-            // For Patron routes, ONLY appointed Patron can access
-            $hasAccess = $user->isAppointedPatron();
-        } elseif (!$hasAccess && $user->role === 'faculty') {
-            // For other roles, faculty users who are appointed can access
-            if ($role === 'hod' && $user->isAppointedHod()) {
+        \Log::info("MULTI-ROLE CHECK: User {$user->email} (Role: {$user->role}) against: " . implode(', ', $allowedRoles));
+        
+        // Basic role check
+        $hasAccess = in_array($user->role, $allowedRoles);
+        
+        // Role Inheritance / Hierarchical Access
+        $studentRoles = ['student', 'gd', 'photo', 'video', 'smt', 'doc', 'deco', 'vc', 'sa'];
+
+        // 1. President can access anything a Student or Team Lead can
+        if (!$hasAccess && $user->role === 'president') {
+            foreach ($studentRoles as $sr) {
+                if (in_array($sr, $allowedRoles)) {
+                    $hasAccess = true;
+                    break;
+                }
+            }
+        }
+
+        // 2. Technical Team Roles (GD, Photo, SMT, etc.)
+        // Students who are members of these teams should also have access
+        if (!$hasAccess && in_array($user->role, $studentRoles)) {
+            $roleToTeamType = [
+                'gd' => 'graphics',
+                'photo' => 'photo',
+                'video' => 'video',
+                'smt' => 'smt',
+                'doc' => 'doc',
+                'deco' => 'decoration',
+            ];
+
+            foreach ($allowedRoles as $role) {
+                if (isset($roleToTeamType[$role])) {
+                    $teamType = $roleToTeamType[$role];
+                    // Check if user is in a team of this type
+                    if ($user->teams()->where('type', $teamType)->exists()) {
+                        $hasAccess = true;
+                        break;
+                    }
+                }
+                
+                // Also allow team leads to access student-level pages
+                if ($role === 'student') {
+                    $hasAccess = true;
+                    break;
+                }
+            }
+        }
+
+        // 3. Admin can access almost everything
+        if ($user->role === 'admin') {
+            $hasAccess = true; 
+        }
+
+        // Special handling for HOD and Patron roles (appointed status check)
+        if (in_array('hod', $allowedRoles) && ($user->role === 'hod' || $user->isAppointedHod())) {
+            $hasAccess = true;
+        }
+        if (in_array('patron', $allowedRoles) && ($user->role === 'patron' || $user->isAppointedPatron())) {
+            $hasAccess = true;
+        }
+        
+        // Re-check for specific appointed access if user is faculty
+        if (!$hasAccess && $user->role === 'faculty') {
+            if (in_array('hod', $allowedRoles) && $user->isAppointedHod()) {
                 $hasAccess = true;
-            } elseif ($role === 'patron' && $user->isAppointedPatron()) {
+            } elseif (in_array('patron', $allowedRoles) && $user->isAppointedPatron()) {
                 $hasAccess = true;
             }
         }
         
         if (!$hasAccess) {
-            return redirect()->route('unauthorized')->with('error', 'You do not have permission to access this page.');
+            \Log::info("Access for {$user->email} to " . $request->path() . " is DENIED. Allowed: " . implode(',', $allowedRoles));
+            $dashboardRoutes = [
+                'admin' => 'admin.dashboard',
+                'hod' => 'hod.dashboard',
+                'patron' => 'patron.dashboard',
+                'president' => 'president.dashboard',
+                'student' => 'student.dashboard',
+                'sa' => 'sa.dashboard',
+                'vc' => 'vc.dashboard',
+                'gd' => 'gd.dashboard',
+                'photo' => 'photo.dashboard',
+                'video' => 'video.dashboard',
+                'smt' => 'smt.dashboard',
+                'doc' => 'doc.dashboard',
+                'deco' => 'deco.dashboard',
+                'faculty' => 'faculty.dashboard',
+            ];
+            $route = $dashboardRoutes[$user->role] ?? 'student.dashboard';
+            return redirect()->route($route)->with('error', 'You do not have permission to access that page.');
         }
 
         // Check if user needs to change password (except for password change routes)
@@ -52,6 +121,7 @@ class RoleMiddleware
             return redirect()->route('password.change')->with('info', 'You must change your password before continuing.');
         }
 
+        \Log::info("Access for {$user->email} to " . $request->path() . " is ALLOWED.");
         return $next($request);
     }
 }

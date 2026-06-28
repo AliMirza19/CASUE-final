@@ -98,22 +98,31 @@
                 </div>
             </div>
 
-            <!-- Existing Designs -->
-            @if($event->graphics && $event->graphics->count() > 0)
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h4 class="text-lg font-semibold text-gray-800 mb-4">Existing Designs</h4>
-                <div class="space-y-2">
-                    @foreach($event->graphics as $graphic)
-                        <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
-                            <span class="text-sm text-gray-700">{{ ucfirst(str_replace('_', ' ', $graphic->design_category)) }}</span>
-                            <span class="px-2 py-1 text-xs rounded-full {{ $graphic->status === 'approved' ? 'bg-green-100 text-green-800' : ($graphic->status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800') }}">
-                                {{ ucfirst($graphic->status) }}
-                            </span>
-                        </div>
-                    @endforeach
+            <!-- AI Creative Assistant -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-cause-purple">
+                <h4 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-cause-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    AI Creative Assistant
+                </h4>
+                
+                <div class="space-y-4">
+                    <button type="button" onclick="getAiPersona()" id="btnPersona"
+                        class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-2 px-4 rounded-lg border border-indigo-200 transition flex items-center justify-center text-sm">
+                        Suggest Visual Persona
+                    </button>
+                    
+                    <button type="button" onclick="getAiCopy()" id="btnCopy"
+                        class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium py-2 px-4 rounded-lg border border-blue-200 transition flex items-center justify-center text-sm">
+                        Generate Social Copy
+                    </button>
+                    
+                    <div id="aiResultContainer" class="hidden mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs text-gray-700 whitespace-pre-line">
+                        <!-- AI Results here -->
+                    </div>
                 </div>
             </div>
-            @endif
         </div>
     </div>
 @endsection
@@ -129,6 +138,70 @@ function previewImage(input) {
         }
         reader.readAsDataURL(input.files[0]);
     }
+}
+
+function getAiPersona() {
+    const btn = document.getElementById('btnPersona');
+    const container = document.getElementById('aiResultContainer');
+    const originalText = btn.innerText;
+    
+    btn.innerText = 'Analyzing...';
+    btn.disabled = true;
+    
+    fetch('{{ route("gd.api.ai-persona") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ event_id: '{{ $event->id }}' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            container.innerText = data.result;
+            container.classList.remove('hidden');
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => console.error('Error:', error))
+    .finally(() => {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    });
+}
+
+function getAiCopy() {
+    const btn = document.getElementById('btnCopy');
+    const container = document.getElementById('aiResultContainer');
+    const originalText = btn.innerText;
+    
+    btn.innerText = 'Writing...';
+    btn.disabled = true;
+    
+    fetch('{{ route("gd.api.ai-copy") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ event_id: '{{ $event->id }}' })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            container.innerText = data.result;
+            container.classList.remove('hidden');
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => console.error('Error:', error))
+    .finally(() => {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    });
 }
 </script>
 @endpush

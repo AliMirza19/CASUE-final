@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class EventController extends Controller
 {
@@ -42,14 +43,12 @@ class EventController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'expected_date' => 'required|date|after:today',
-            'venue' => 'required|string|max:255',
             'guest_speaker_name' => 'nullable|string|max:255',
             'guest_speaker_designation' => 'nullable|string|max:255',
             'faculty_mentor_id' => 'nullable|exists:users,id',
             'items' => 'required|array|min:1',
             'items.*.name' => 'required|string|max:255',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_rate' => 'required|numeric|min:0'
+            'items.*.quantity' => 'required|integer|min:1'
         ]);
         
         $user = Auth::user();
@@ -57,13 +56,24 @@ class EventController extends Controller
         // Get active term
         $activeTerm = \App\Models\AcademicTerm::getActive();
         $termId = $activeTerm ? $activeTerm->id : $user->current_term_id;
+
+        // Prevent duplicate submissions within last 30 seconds
+        $existing = Event::where('student_id', $user->id)
+            ->where('title', $request->title)
+            ->where('created_at', '>=', now()->subSeconds(30))
+            ->first();
+            
+        if ($existing) {
+            return redirect()->route('student.events.index')
+                ->with('warning', 'This event was already submitted a few moments ago.');
+        }
         
         DB::beginTransaction();
         try {
             // Calculate grand total
             $grandTotal = 0;
             foreach ($request->items as $item) {
-                $grandTotal += $item['quantity'] * $item['unit_rate'];
+                $grandTotal += $item['total_amount'] ?? 0;
             }
             
             // Create event
@@ -71,14 +81,14 @@ class EventController extends Controller
                 'title' => $request->title,
                 'description' => $request->description,
                 'student_id' => $user->id,
+                'created_by_role' => $user->role, // Track who created it
                 'term_id' => $termId,  // Use active term
                 'expected_date' => $request->expected_date,
-                'venue' => $request->venue,
                 'grand_total' => $grandTotal,
                 'guest_speaker_name' => $request->guest_speaker_name,
                 'guest_speaker_designation' => $request->guest_speaker_designation,
                 'faculty_mentor_id' => $request->faculty_mentor_id,
-                'status' => 'pending_president'
+                'status' => Event::getInitialStatus($user->role) // Dynamic initial status
             ]);
             
             // Create event items
@@ -87,20 +97,28 @@ class EventController extends Controller
                     'event_id' => $event->id,
                     'item_name' => $item['name'],
                     'quantity' => $item['quantity'],
-                    'unit_rate' => $item['unit_rate'],
-                    'total_amount' => $item['quantity'] * $item['unit_rate']
+                    'total_amount' => $item['total_amount'] ?? 0
                 ]);
             }
             
             // Log activity
             ActivityLog::logActivity($user, "Submitted new event: {$event->title}");
             
+            // Proactive AI Risk Assessment
+            try {
+                $aiRiskService = app(\App\Services\AiRiskService::class);
+                $assessment = $aiRiskService->assessEventRisk($event);
+                $event->update(['risk_assessment' => $assessment]);
+            } catch (\Exception $e) {
+                Log::warning('Initial AI Risk Assessment failed', ['error' => $e->getMessage()]);
+            }
+            
             // Send message to faculty mentor if selected
             if ($request->faculty_mentor_id) {
                 Message::create([
                     'sender_id' => $user->id,
                     'receiver_id' => $request->faculty_mentor_id,
-                    'message_text' => "You have been selected as Faculty Mentor for the event: \"{$event->title}\". Event Date: {$event->expected_date->format('M d, Y')}, Venue: {$event->venue}.",
+                    'message_text' => "You have been selected as Faculty Mentor for the event: \"{$event->title}\". Event Date: {$event->expected_date->format('M d, Y')}.",
                     'is_read' => false,
                 ]);
             }
@@ -143,11 +161,9 @@ class EventController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'expected_date' => 'required|date|after:today',
-            'venue' => 'required|string|max:255',
             'items' => 'required|array|min:1',
             'items.*.name' => 'required|string|max:255',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_rate' => 'required|numeric|min:0'
+            'items.*.quantity' => 'required|integer|min:1'
         ]);
         
         $user = Auth::user();
@@ -160,7 +176,7 @@ class EventController extends Controller
             // Calculate grand total
             $grandTotal = 0;
             foreach ($request->items as $item) {
-                $grandTotal += $item['quantity'] * $item['unit_rate'];
+                $grandTotal += $item['total_amount'] ?? 0;
             }
             
             // Update event
@@ -168,7 +184,6 @@ class EventController extends Controller
                 'title' => $request->title,
                 'description' => $request->description,
                 'expected_date' => $request->expected_date,
-                'venue' => $request->venue,
                 'grand_total' => $grandTotal,
                 'status' => 'pending_president'
             ]);
@@ -181,8 +196,7 @@ class EventController extends Controller
                     'event_id' => $event->id,
                     'item_name' => $item['name'],
                     'quantity' => $item['quantity'],
-                    'unit_rate' => $item['unit_rate'],
-                    'total_amount' => $item['quantity'] * $item['unit_rate']
+                    'total_amount' => $item['total_amount'] ?? 0
                 ]);
             }
             
@@ -214,5 +228,39 @@ class EventController extends Controller
         
         return redirect()->route('student.events.index')
             ->with('success', 'Event forwarded to Patron for review!');
+    }
+
+    public function downloadApproval($id)
+    {
+        $user = Auth::user();
+        $event = Event::with(['items', 'student', 'term'])
+            ->where('student_id', $user->id)
+            ->where('status', 'approved')
+            ->findOrFail($id);
+            
+        // 1. Try to get HOD assigned to this event's term
+        $hodAssignment = \App\Models\RoleAssignment::getCurrentHod($event->term_id);
+        $hod = $hodAssignment ? $hodAssignment->user : null;
+        
+        // 2. Fallback to current active term HOD
+        if (!$hod) {
+            $activeTerm = \App\Models\AcademicTerm::getActive();
+            if ($activeTerm) {
+                $currentHodAssignment = \App\Models\RoleAssignment::getCurrentHod($activeTerm->id);
+                $hod = $currentHodAssignment ? $currentHodAssignment->user : null;
+            }
+        }
+        
+        // 3. Last resort: Find anyone with HOD role
+        if (!$hod) {
+            $hod = User::where('role', 'hod')->first();
+        }
+        
+        // 4. If still no HOD, check if there's any faculty who has a signature (maybe they were HOD)
+        if (!$hod) {
+            $hod = User::whereNotNull('digital_signature')->where('role', 'faculty')->first();
+        }
+        
+        return view('student.events.pdf-approval', compact('event', 'hod'));
     }
 }

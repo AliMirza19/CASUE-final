@@ -17,6 +17,12 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        $announcements = \App\Models\Announcement::with('creator')->latest()->take(6)->get();
+        return view('dashboards.patron', compact('announcements'));
+    }
+
+    public function overview()
+    {
         $user = Auth::user();
         
         // Get active term instead of user's current_term_id
@@ -57,7 +63,7 @@ class DashboardController extends Controller
             $unreadMessageCount = Message::getUnreadCount($user->id, $hodAssignment->user_id);
         }
         
-        return view('dashboards.patron', compact(
+        return view('patron.overview', compact(
             'pendingEvents',
             'pendingCandidates',
             'pendingGraphics',
@@ -87,12 +93,45 @@ class DashboardController extends Controller
             'rejectedGraphics'
         ));
     }
+
+    public function candidates()
+    {
+        // All candidates
+        $allCandidates = CandidateProfile::with('student')
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        $pendingCandidates = $allCandidates->where('status', 'pending_patron');
+        $approvedCandidates = $allCandidates->where('status', 'approved');
+        $rejectedCandidates = $allCandidates->where('status', 'rejected');
+        
+        return view('patron.candidates', compact(
+            'allCandidates',
+            'pendingCandidates',
+            'approvedCandidates',
+            'rejectedCandidates'
+        ));
+    }
     
     public function reviewEvent($id)
     {
         $event = Event::with(['student', 'items', 'facultyMentor'])->findOrFail($id);
         
-        return view('patron.review-event', compact('event'));
+        // Re-run AI Risk Assessment if it was previously saved as "offline" or "N/A"
+        if (!$event->risk_assessment || 
+            ($event->risk_assessment['risk_level'] ?? '') === 'N/A' || 
+            str_contains(($event->risk_assessment['suggestions'] ?? ''), 'Update .env')) {
+            
+            $riskData = app(\App\Services\AiRiskService::class)->assessEventRisk($event);
+            if ($riskData['risk_level'] !== 'Unknown') {
+                $event->risk_assessment = $riskData;
+                $event->save();
+            }
+        }
+
+        $aiAnalysis = app(\App\Services\AiDecisionSupportService::class)->analyzeEventBudget($event, 'patron');
+
+        return view('patron.review-event', compact('event', 'aiAnalysis'));
     }
     
     public function approveEvent(Request $request, $id)
@@ -103,9 +142,18 @@ class DashboardController extends Controller
             'items' => 'nullable|array',
             'items.*.quantity' => 'nullable|integer|min:0',
             'items.*.unit_rate' => 'nullable|numeric|min:0',
+            'items.*.total_amount' => 'nullable|numeric|min:0',
             'items.*.is_approved' => 'nullable|boolean',
-            'items.*.comment' => 'nullable|string|max:255'
+            'items.*.comment' => 'nullable|string|max:255',
+            'digital_signature' => 'nullable|image|max:2048'
         ]);
+
+        if ($request->hasFile('digital_signature')) {
+            $path = $request->file('digital_signature')->store('signatures', 'public');
+            $user = Auth::user();
+            $user->digital_signature = $path;
+            $user->save();
+        }
         
         $event = Event::with('items')->findOrFail($id);
         $changes = [];
@@ -115,12 +163,13 @@ class DashboardController extends Controller
                 $item = $event->items->find($itemId);
                 if ($item) {
                     $oldQty = $item->quantity;
-                    $oldRate = $item->unit_rate;
+                    $oldAmount = $item->total_amount;
                     $oldApproved = $item->is_approved_by_patron;
                     
                     // Use existing value if input is missing or empty, otherwise case to type
                     $newQty = isset($itemData['quantity']) && $itemData['quantity'] !== '' ? (int)$itemData['quantity'] : $oldQty;
-                    $newRate = isset($itemData['unit_rate']) && $itemData['unit_rate'] !== '' ? (float)$itemData['unit_rate'] : $oldRate;
+                    $newRate = isset($itemData['unit_rate']) && $itemData['unit_rate'] !== '' ? (float)$itemData['unit_rate'] : $item->unit_rate;
+                    $newAmount = $newQty * $newRate;
                     
                     // Approval logic: If checkbox/radio not sent, keep existing state? 
                     // Or default to false? Usually forms send nothing for unchecked. 
@@ -139,13 +188,14 @@ class DashboardController extends Controller
                     // Update item
                     $item->quantity = $newQty;
                     $item->unit_rate = $newRate;
+                    $item->total_amount = $newAmount;
                     $item->is_approved_by_patron = $newApproved;
                     $item->patron_comment = $newComment;
                     $item->save();
                     
                     // Track changes for notification
-                    if ($oldQty != $newQty || $oldRate != $newRate || $oldApproved != $newApproved) {
-                        $changeDetails = "({$newQty} x {$newRate})";
+                    if ($oldQty != $newQty || $oldAmount != $newAmount || $oldApproved != $newApproved) {
+                        $changeDetails = "Amount: PKR {$newAmount} (Qty: {$newQty}, Rate: {$newRate})";
                         if (!$newApproved) $changeDetails = "REMOVED FROM BUDGET";
                         $changes[] = "- {$item->item_name}: {$changeDetails}";
                     }

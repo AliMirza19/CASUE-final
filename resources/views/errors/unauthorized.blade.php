@@ -54,6 +54,12 @@
                                 'sa' => 'sa.dashboard',
                                 'vc' => 'vc.dashboard',
                                 'gd' => 'gd.dashboard',
+                                'photo' => 'photo.dashboard',
+                                'video' => 'video.dashboard',
+                                'smt' => 'smt.dashboard',
+                                'doc' => 'doc.dashboard',
+                                'deco' => 'deco.dashboard',
+                                'faculty' => 'faculty.dashboard',
                             ];
                             $dashboardRoute = $dashboardRoutes[$userRole] ?? 'student.dashboard';
                         @endphp

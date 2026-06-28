@@ -13,6 +13,12 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        $announcements = \App\Models\Announcement::with('creator')->latest()->take(6)->get();
+        return view('dashboards.gd', compact('announcements'));
+    }
+
+    public function overview()
+    {
         $user = Auth::user();
         $termId = $user->current_term_id;
         
@@ -35,13 +41,16 @@ class DashboardController extends Controller
         $pendingApproval = $myGraphics->where('status', 'pending_patron')->count();
         $approvedGraphics = $myGraphics->where('status', 'approved')->count();
         
-        return view('dashboards.gd', compact(
+        $announcements = \App\Models\Announcement::with('creator')->latest()->take(6)->get();
+        
+        return view('gd.overview', compact(
             'approvedEvents',
             'myGraphics',
             'totalApprovedEvents',
             'totalGraphicsUploaded',
             'pendingApproval',
-            'approvedGraphics'
+            'approvedGraphics',
+            'announcements'
         ));
     }
     
@@ -95,5 +104,23 @@ class DashboardController extends Controller
         }
         
         return view('gd.view-feedback', compact('graphic'));
+    }
+
+    public function getAiPersona(Request $request)
+    {
+        $request->validate(['event_id' => 'required|exists:events,id']);
+        $event = Event::findOrFail($request->event_id);
+        
+        $aiService = app(\App\Services\AiCreativeEngineService::class);
+        return response()->json($aiService->generateVisualPersona($event->title, $event->description));
+    }
+
+    public function getAiCopy(Request $request)
+    {
+        $request->validate(['event_id' => 'required|exists:events,id']);
+        $event = Event::findOrFail($request->event_id);
+        
+        $aiService = app(\App\Services\AiCreativeEngineService::class);
+        return response()->json($aiService->generateSocialMediaCopy($event->title, $event->description));
     }
 }

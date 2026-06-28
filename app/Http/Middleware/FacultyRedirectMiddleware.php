@@ -21,12 +21,22 @@ class FacultyRedirectMiddleware
     {
         $user = Auth::user();
         
+        // Only redirect if hitting the root or faculty routes specifically
+        if (!$request->is('/') && !$request->is('faculty*')) {
+            return $next($request);
+        }
+        
         // Only apply to faculty users
         if (!$user || $user->role !== 'faculty') {
             return $next($request);
         }
         
         $activeTerm = AcademicTerm::getActive();
+        
+        // Skip redirection if the user explicitly switched their active role to 'faculty'
+        if ($user->getActiveRole() === 'faculty') {
+            return $next($request);
+        }
         
         if ($activeTerm) {
             // Check if appointed as HOD for active term

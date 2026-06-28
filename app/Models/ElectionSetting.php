@@ -12,17 +12,21 @@ class ElectionSetting extends Model
 
     protected $fillable = [
         'term_id',
-        'voting_enabled',
-        'voting_start_date',
-        'voting_end_date',
+        'registration_start',
+        'registration_end',
+        'voting_start',
+        'voting_end',
+        'is_active',
     ];
 
     protected function casts(): array
     {
         return [
-            'voting_enabled' => 'boolean',
-            'voting_start_date' => 'datetime',
-            'voting_end_date' => 'datetime',
+            'registration_start' => 'datetime',
+            'registration_end' => 'datetime',
+            'voting_start' => 'datetime',
+            'voting_end' => 'datetime',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -35,51 +39,78 @@ class ElectionSetting extends Model
     }
 
     /**
-     * Check if voting is currently active.
+     * Check if registration is currently open.
      */
-    public function isVotingActive(): bool
+    public function isRegistrationOpen(): bool
     {
-        if (!$this->voting_enabled) {
+        if (!$this->is_active || !$this->registration_start || !$this->registration_end) {
             return false;
         }
 
         $now = now();
-        return $now >= $this->voting_start_date && $now <= $this->voting_end_date;
+        return $now >= $this->registration_start && $now <= $this->registration_end;
     }
 
     /**
-     * Check if voting period has ended.
+     * Check if voting is currently active.
      */
-    public function hasVotingEnded(): bool
+    public function isVotingActive(): bool
     {
-        return $this->voting_end_date && now() > $this->voting_end_date;
+        if (!$this->is_active || !$this->voting_start || !$this->voting_end) {
+            return false;
+        }
+
+        $now = now();
+        return $now >= $this->voting_start && $now <= $this->voting_end;
     }
 
     /**
-     * Check if voting period has not started yet.
+     * Get the current status text.
      */
-    public function isVotingUpcoming(): bool
+    public function getStatus(): string
     {
-        return $this->voting_start_date && now() < $this->voting_start_date;
+        if (!$this->is_active) {
+            return 'Inactive';
+        }
+
+        $now = now();
+
+        if ($this->registration_start && $now < $this->registration_start) {
+            return 'Registration Upcoming';
+        }
+
+        if ($this->isRegistrationOpen()) {
+            return 'Registration Open';
+        }
+
+        if ($this->registration_end && $now < $this->voting_start) {
+            return 'Awaiting Voting';
+        }
+
+        if ($this->isVotingActive()) {
+            return 'Voting Live';
+        }
+
+        if ($this->voting_end && $now > $this->voting_end) {
+            return 'Elections Closed';
+        }
+
+        return 'Status Unknown';
     }
 
     /**
-     * Enable voting for a specific period.
+     * Get status color class (Tailwind).
      */
-    public function enableVoting(\DateTime $startDate, \DateTime $endDate): void
+    public function getStatusColor(): string
     {
-        $this->update([
-            'voting_enabled' => true,
-            'voting_start_date' => $startDate,
-            'voting_end_date' => $endDate,
-        ]);
-    }
-
-    /**
-     * Disable voting.
-     */
-    public function disableVoting(): void
-    {
-        $this->update(['voting_enabled' => false]);
+        $status = $this->getStatus();
+        
+        return match($status) {
+            'Registration Open' => 'bg-blue-100 text-blue-800',
+            'Voting Live' => 'bg-green-100 text-green-800',
+            'Registration Upcoming', 'Awaiting Voting' => 'bg-yellow-100 text-yellow-800',
+            'Elections Closed' => 'bg-red-100 text-red-800',
+            default => 'bg-gray-100 text-gray-800',
+        };
     }
 }

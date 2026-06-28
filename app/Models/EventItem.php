@@ -42,19 +42,12 @@ class EventItem extends Model
     }
 
     /**
-     * Calculate total amount based on quantity and unit rate.
-     */
-    public function calculateTotal(): float
-    {
-        return $this->quantity * $this->unit_rate;
-    }
-
-    /**
-     * Update total amount based on quantity and unit rate.
+     * Update total amount (calculated from unit_rate).
      */
     public function updateTotal(): void
     {
-        $this->update(['total_amount' => $this->calculateTotal()]);
+        // No-op or update event grand total
+        $this->event->updateGrandTotal();
     }
 
     /**
@@ -63,10 +56,6 @@ class EventItem extends Model
     protected static function boot()
     {
         parent::boot();
-
-        static::saving(function ($item) {
-            $item->total_amount = $item->calculateTotal();
-        });
 
         static::saved(function ($item) {
             // Update event grand total when item is saved

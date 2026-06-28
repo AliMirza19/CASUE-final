@@ -218,7 +218,7 @@
                             </tr>
                             <tr>
                                 <td class="py-2 font-medium">Email</td>
-                                <td class="py-2 text-gray-600">ahmed@edu.pk</td>
+                                <td class="py-2 text-gray-600">ahmed@student.edu.pk</td>
                             </tr>
                         </tbody>
                     </table>
@@ -291,18 +291,6 @@
                         <td class="px-6 py-4 font-mono">BSE123456</td>
                         <td class="px-6 py-4">ahmed@student.edu.pk</td>
                         <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Student</span></td>
-                    </tr>
-                    <tr>
-                        <td class="px-6 py-4">Sara Ali</td>
-                        <td class="px-6 py-4 font-mono">BSE123457</td>
-                        <td class="px-6 py-4">sara@student.edu.pk</td>
-                        <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Student</span></td>
-                    </tr>
-                    <tr>
-                        <td class="px-6 py-4">Dr. Imran Ahmed</td>
-                        <td class="px-6 py-4 font-mono">BFE100001</td>
-                        <td class="px-6 py-4">imran@faculty.edu.pk</td>
-                        <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-medium rounded-full bg-teal-100 text-teal-800">Faculty</span></td>
                     </tr>
                 </tbody>
             </table>

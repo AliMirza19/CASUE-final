@@ -15,6 +15,12 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
+        $announcements = \App\Models\Announcement::with('creator')->latest()->take(6)->get();
+        return view('dashboards.admin', compact('announcements'));
+    }
+
+    public function analytics(Request $request)
+    {
         // Get selected term or active term
         $selectedTermId = $request->get('term_id');
         $activeTerm = AcademicTerm::where('status', 'active')->first();
@@ -73,7 +79,7 @@ class DashboardController extends Controller
             $activeTermExpired = true;
         }
         
-        return view('dashboards.admin', compact(
+        return view('admin.overview', compact(
             'allTerms',
             'selectedTerm',
             'selectedTermId',
@@ -148,6 +154,10 @@ class DashboardController extends Controller
      */
     public function continueHod(Request $request)
     {
+        if ($request->isMethod('get')) {
+            return redirect()->route('admin.manage-hod');
+        }
+
         $activeTerm = AcademicTerm::where('status', 'active')->first();
         
         if (!$activeTerm) {
@@ -179,6 +189,10 @@ class DashboardController extends Controller
      */
     public function appointHod(Request $request)
     {
+        if ($request->isMethod('get')) {
+            return redirect()->route('admin.manage-hod');
+        }
+
         $request->validate([
             'user_id' => 'required|exists:users,id'
         ]);
@@ -208,5 +222,53 @@ class DashboardController extends Controller
         
         return redirect()->route('admin.manage-hod')
             ->with('success', "HOD appointed successfully! {$user->name} is now the HOD for {$activeTerm->term_name}.");
+    }
+
+    /**
+     * Show budget management page.
+     */
+    public function manageBudget(Request $request)
+    {
+        $selectedTermId = $request->get('term_id');
+        $activeTerm = AcademicTerm::where('status', 'active')->first();
+        
+        if (!$selectedTermId && $activeTerm) {
+            $selectedTermId = $activeTerm->id;
+        }
+        
+        $allTerms = AcademicTerm::orderBy('created_at', 'desc')->get();
+        $selectedTerm = $selectedTermId ? AcademicTerm::find($selectedTermId) : null;
+        $budget = $selectedTermId ? Budget::where('term_id', $selectedTermId)->first() : null;
+        
+        return view('admin.manage-budget', compact('allTerms', 'selectedTerm', 'selectedTermId', 'budget'));
+    }
+
+    /**
+     * Save budget for a term.
+     */
+    public function saveBudget(Request $request)
+    {
+        $request->validate([
+            'term_id' => 'required|exists:academic_terms,id',
+            'total_amount' => 'required|numeric|min:0'
+        ]);
+        
+        $existingBudget = Budget::where('term_id', $request->term_id)->first();
+        
+        if ($existingBudget && $existingBudget->is_locked) {
+            return back()->with('error', 'This budget is already locked and cannot be updated.');
+        }
+        
+        $budget = Budget::updateOrCreate(
+            ['term_id' => $request->term_id],
+            [
+                'total_amount' => $request->total_amount,
+                'remaining_amount' => $request->total_amount,
+                'is_locked' => true // Always lock when Admin sets it
+            ]
+        );
+        
+        return redirect()->route('admin.budget', ['term_id' => $request->term_id])
+            ->with('success', 'Budget set and locked successfully!');
     }
 }

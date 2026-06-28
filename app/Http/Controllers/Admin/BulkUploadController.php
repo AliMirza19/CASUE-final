@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\AcademicTerm;
+use App\Notifications\UserImportResult;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 
@@ -53,9 +55,10 @@ class BulkUploadController extends Controller
         $activeTerm = AcademicTerm::where('status', 'active')->first();
         $termId = $activeTerm ? $activeTerm->id : null;
         
-        // Get existing reg_ids and emails for duplicate check
+        // Get existing reg_ids, emails, and cnics for duplicate check
         $existingRegIds = User::pluck('reg_id')->toArray();
         $existingEmails = User::pluck('email')->toArray();
+        $existingCnics = User::pluck('cnic')->filter()->toArray(); // filter() removes nulls
         
         $results = [
             'total' => count($data),
@@ -70,6 +73,7 @@ class BulkUploadController extends Controller
         $usersToInsert = [];
         $newRegIds = [];
         $newEmails = [];
+        $newCnics = [];
         
         foreach ($data as $index => $row) {
             $rowNumber = $index + 2; // +2 because of 0-index and header row
@@ -87,6 +91,7 @@ class BulkUploadController extends Controller
             $name = trim($row[0]);
             $regId = strtoupper(trim($row[1]));
             $email = strtolower(trim($row[2]));
+            $cnic = isset($row[3]) ? trim($row[3]) : null;
             
             // Validate name
             if (empty($name)) {
@@ -153,6 +158,28 @@ class BulkUploadController extends Controller
                 $results['skipped']++;
                 continue;
             }
+
+            // Check for duplicate CNIC in database (if CNIC is provided)
+            if ($cnic && in_array($cnic, $existingCnics)) {
+                $results['duplicates'][] = [
+                    'row' => $rowNumber,
+                    'reg_id' => $regId,
+                    'reason' => "CNIC '{$cnic}' already exists in database"
+                ];
+                $results['skipped']++;
+                continue;
+            }
+
+            // Check for duplicate CNIC in current batch
+            if ($cnic && in_array($cnic, $newCnics)) {
+                $results['duplicates'][] = [
+                    'row' => $rowNumber,
+                    'reg_id' => $regId,
+                    'reason' => "Duplicate CNIC '{$cnic}' in uploaded file"
+                ];
+                $results['skipped']++;
+                continue;
+            }
             
             // Determine role based on Registration ID format
             $role = $this->determineRole($regId);
@@ -172,7 +199,7 @@ class BulkUploadController extends Controller
                 'name' => $name,
                 'reg_id' => $regId,
                 'email' => $email,
-                'cnic' => $row[3] ?? null,
+                'cnic' => $cnic,
                 'contact_number' => $row[4] ?? null,
                 'father_name' => $row[5] ?? null,
                 'current_semester' => $row[6] ?? null,
@@ -186,6 +213,9 @@ class BulkUploadController extends Controller
             
             $newRegIds[] = $regId;
             $newEmails[] = $email;
+            if ($cnic) {
+                $newCnics[] = $cnic;
+            }
             
             if ($role === 'student') {
                 $results['students']++;
@@ -208,12 +238,21 @@ class BulkUploadController extends Controller
                 DB::commit();
             } catch (\Exception $e) {
                 DB::rollBack();
+
+                // Notify admin of complete failure
+                Auth::user()->notify(new UserImportResult('bulk', 0, count($usersToInsert), 'bulk', null, [$e->getMessage()]));
+
                 return redirect()->route('admin.bulk-upload')
                     ->with('error', 'Database error: ' . $e->getMessage());
             }
         }
         
         $results['success'] = $results['students'] + $results['faculty'];
+        
+        // Notify admin of bulk upload result
+        $totalSuccess = $results['students'] + $results['faculty'];
+        $totalFailed = $results['skipped'];
+        Auth::user()->notify(new UserImportResult('bulk', $totalSuccess, $totalFailed, 'bulk'));
         
         return redirect()->route('admin.bulk-upload')
             ->with('results', $results);
@@ -272,13 +311,8 @@ class BulkUploadController extends Controller
             // Header row
             fputcsv($file, ['Name', 'Registration ID', 'Email', 'CNIC', 'Contact Number', 'Father Name', 'Current Semester']);
             
-            // Sample student data (BSE format)
+            // Exactly one sample record
             fputcsv($file, ['Ahmed Khan', 'BSE123456', 'ahmed.khan@student.edu.pk', '12345-1234567-1', '0300-1234567', 'Muhammad Khan', '6th']);
-            fputcsv($file, ['Sara Ali', 'BSE123457', 'sara.ali@student.edu.pk', '12345-1234567-2', '0300-7654321', 'Ali Hassan', '4th']);
-            fputcsv($file, ['Muhammad Hassan', 'BSE123458', 'muhammad.hassan@student.edu.pk', '12345-1234567-3', '0321-1234567', 'Hassan Raza', '2nd']);
-            
-            // Sample faculty data (BFE format)
-            fputcsv($file, ['Dr. Imran Ahmed', 'BFE100001', 'imran.ahmed@faculty.edu.pk', '12345-1234567-4', '0333-1234567', 'Ahmed Ali', 'N/A']);
             
             fclose($file);
         };

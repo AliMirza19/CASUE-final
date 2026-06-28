@@ -5,18 +5,7 @@
 @section('page-description', 'Review and approve event with budget allocation')
 
 @section('sidebar')
-    <a href="{{ route('hod.dashboard') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-        </svg>
-        Dashboard
-    </a>
-    <a href="{{ route('hod.budget') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-        Manage Budget
-    </a>
+    @include('partials.hod-sidebar')
 @endsection
 
 @section('content')
@@ -39,7 +28,7 @@
     </div>
     @endif
 
-    <form action="{{ route('hod.approve', $event->id) }}" method="POST">
+    <form action="{{ route('hod.review.final', $event->id) }}" method="POST">
     @csrf
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 space-y-6">
@@ -80,6 +69,17 @@
                             <p class="font-medium text-gray-800">{{ $event->guest_speaker_designation }}</p>
                         </div>
                         @endif
+                        @if($event->guest_speaker_profile_link)
+                        <div class="col-span-2">
+                            <p class="text-sm text-gray-500">Guest Speaker Profile</p>
+                            <a href="{{ $event->guest_speaker_profile_link }}" target="_blank" class="text-cause-purple hover:underline flex items-center font-medium">
+                                View Profile
+                                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                </svg>
+                            </a>
+                        </div>
+                        @endif
                         @if($event->facultyMentor)
                         <div>
                             <p class="text-sm text-gray-500">Faculty Mentor</p>
@@ -91,59 +91,85 @@
                 @endif
             </div>
 
-            <!-- Budget Items -->
-            <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                    <h4 class="text-lg font-semibold text-gray-800">Budget Details</h4>
+            <!-- Premium Budget Details Section -->
+            <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                <div class="px-8 py-6 bg-gradient-to-r from-cause-purple to-cause-purple-dark flex justify-between items-center">
+                    <div class="flex items-center space-x-3">
+                        <div class="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                        </div>
+                        <h4 class="text-xl font-bold text-white tracking-tight">Final Budget Details</h4>
+                    </div>
+                    <span class="px-3 py-1 bg-white/20 text-white text-xs font-semibold rounded-full backdrop-blur-sm uppercase tracking-wider">HOD Authorization</span>
                 </div>
                 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse" id="budget-table">
+                    <table class="w-full border-separate border-spacing-0" id="budget-table">
                         <thead>
-                            <tr class="bg-[#f2f4f7] border-b border-gray-200">
-                                <th class="px-6 py-4 text-sm font-bold text-[#4a5568]">Item (Patron Approved)</th>
-                                <th class="px-6 py-4 text-sm font-bold text-[#4a5568] w-32 text-center">Rate</th>
-                                <th class="px-6 py-4 text-sm font-bold text-[#4a5568] w-32 text-center">Amount</th>
-                                <th class="px-6 py-4 text-sm font-bold text-[#4a5568] w-48 text-center">HOD Action</th>
-                                <th class="px-6 py-4 text-sm font-bold text-[#4a5568]">Reason (If Rejected)</th>
+                            <tr class="bg-gray-50/80">
+                                <th class="px-8 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-gray-100">Allocated Item</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-gray-100 text-center">Qty</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-gray-100 text-center">Unit Rate</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-gray-100 text-center">Amount (Total)</th>
+                                <th class="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-gray-100 text-center">HOD Action</th>
+                                <th class="px-8 py-4 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-gray-100">Review Reason</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white">
+                        <tbody class="divide-y divide-gray-50">
                             @foreach($event->items->filter(fn($item) => $item->is_approved_by_patron) as $index => $item)
-                                <tr class="item-row border-b border-gray-100" data-index="{{ $index }}">
+                                <tr class="item-row group hover:bg-purple-50/50 transition-all duration-200" data-index="{{ $index }}">
                                     <input type="hidden" name="items[{{ $item->id }}][id]" value="{{ $item->id }}">
-                                    <td class="px-6 py-6 text-sm text-gray-800">
-                                        {{ $item->item_name }}
-                                        <input type="number" name="items[{{ $item->id }}][quantity]" value="{{ $item->quantity }}" step="1" min="1"
-                                            class="qty-input w-16 text-center px-1 py-1 border border-gray-400 rounded focus:ring-1 focus:ring-cause-purple transition-all outline-none ml-2">
-                                    </td>
-                                    <td class="px-6 py-6 text-center">
-                                        <input type="number" name="items[{{ $item->id }}][unit_rate]" value="{{ (int)$item->unit_rate }}" step="0.01" min="0"
-                                            class="rate-input w-24 text-center px-1 py-1 border border-gray-400 rounded focus:ring-1 focus:ring-cause-purple transition-all outline-none">
-                                    </td>
-                                    <td class="px-6 py-6 text-center tabular-nums">
-                                        <span class="row-total font-bold text-[#63499a] text-base">{{ number_format($item->total_amount, 0) }}</span>
+                                    <td class="px-8 py-6">
+                                        <div class="font-bold text-gray-800 text-base">{{ $item->item_name }}</div>
+                                        <div class="text-[10px] font-black text-green-600 uppercase tracking-tighter">Verified Allocation</div>
                                     </td>
                                     <td class="px-6 py-6">
-                                        <div class="flex items-center justify-center space-x-4 text-sm font-medium text-gray-700">
-                                            <label class="flex items-center cursor-pointer">
-                                                <input type="radio" name="items[{{ $item->id }}][is_approved_by_hod]" value="1" 
-                                                    {{ $item->is_approved_by_hod ? 'checked' : '' }}
-                                                    class="approve-radio w-4 h-4 text-blue-600 focus:ring-blue-500 mr-1.5 focus:ring-offset-0">
-                                                Appr
-                                            </label>
-                                            <label class="flex items-center cursor-pointer">
-                                                <input type="radio" name="items[{{ $item->id }}][is_approved_by_hod]" value="0" 
-                                                    {{ !$item->is_approved_by_hod ? 'checked' : '' }}
-                                                    class="reject-radio w-4 h-4 text-red-600 focus:ring-red-500 mr-1.5 focus:ring-offset-0">
-                                                Rej
-                                            </label>
+                                        <div class="flex justify-center">
+                                            <input type="number" name="items[{{ $item->id }}][quantity]" value="{{ $item->quantity }}" step="1" min="1"
+                                                class="qty-input w-20 text-center px-3 py-2 bg-gray-50 border-2 border-transparent rounded-xl focus:border-cause-purple focus:bg-white focus:ring-0 transition-all duration-200 font-bold text-gray-700 shadow-sm">
                                         </div>
                                     </td>
                                     <td class="px-6 py-6">
+                                        <div class="flex justify-center">
+                                            <input type="number" name="items[{{ $item->id }}][unit_rate]" value="{{ $item->unit_rate }}" step="0.01" min="0"
+                                                class="rate-input w-28 text-center px-3 py-2 bg-gray-50 border-2 border-transparent rounded-xl focus:border-cause-purple focus:bg-white focus:ring-0 transition-all duration-200 font-bold text-gray-700 shadow-sm">
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-6">
+                                        <div class="flex justify-center">
+                                            <div class="relative group/amount">
+                                                <input type="number" name="items[{{ $item->id }}][total_amount]" value="{{ (int)$item->total_amount }}" step="0.01" min="0" readonly
+                                                    class="amount-input w-32 text-center px-3 py-2 border-none bg-transparent focus:ring-0 outline-none transition-all tabular-nums text-lg font-black text-cause-purple">
+                                                <div class="absolute inset-x-0 bottom-0 h-0.5 bg-cause-purple/20 transform scale-x-0 group-hover/amount:scale-x-100 transition-transform duration-300"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-6">
+                                        <div class="flex items-center justify-center space-x-2">
+                                            <label class="relative flex items-center cursor-pointer group/radio">
+                                                <input type="radio" name="items[{{ $item->id }}][is_approved_by_hod]" value="1" 
+                                                    {{ $item->is_approved_by_hod ? 'checked' : '' }}
+                                                    class="approve-radio sr-only peer">
+                                                <div class="px-3 py-1.5 rounded-full border-2 border-gray-200 text-gray-400 text-[10px] font-black uppercase tracking-wider peer-checked:border-blue-600 peer-checked:bg-blue-50 peer-checked:text-blue-600 hover:border-blue-300 transition-all duration-200">
+                                                    Approve
+                                                </div>
+                                            </label>
+                                            <label class="relative flex items-center cursor-pointer group/radio">
+                                                <input type="radio" name="items[{{ $item->id }}][is_approved_by_hod]" value="0" 
+                                                    {{ !$item->is_approved_by_hod ? 'checked' : '' }}
+                                                    class="reject-radio sr-only peer">
+                                                <div class="px-3 py-1.5 rounded-full border-2 border-gray-200 text-gray-400 text-[10px] font-black uppercase tracking-wider peer-checked:border-red-600 peer-checked:bg-red-50 peer-checked:text-red-600 hover:border-red-300 transition-all duration-200">
+                                                    Reject
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </td>
+                                    <td class="px-8 py-6">
                                         <textarea name="items[{{ $item->id }}][hod_comment]" rows="1"
-                                            class="reason-input w-full text-xs px-2 py-1 bg-white border border-gray-300 rounded focus:ring-1 focus:ring-cause-purple outline-none" 
-                                            placeholder="Reason (if rejected)">{{ $item->hod_comment }}</textarea>
+                                            class="reason-input w-full text-sm px-4 py-2 bg-gray-50 border-2 border-transparent rounded-xl focus:border-cause-purple focus:bg-white focus:ring-0 transition-all duration-200 outline-none resize-none" 
+                                            placeholder="Reason if rejected...">{{ $item->hod_comment }}</textarea>
                                     </td>
                                 </tr>
                             @endforeach
@@ -154,21 +180,43 @@
                 <!-- Patron Rejected Items -->
                 @php $rejectedItems = $event->items->filter(fn($item) => !$item->is_approved_by_patron); @endphp
                 @if($rejectedItems->count() > 0)
-                <div class="px-6 py-4 bg-[#fff1f2] border-t border-gray-100">
-                    <p class="text-[15px] font-bold text-[#c81e1e]">
-                        Patron Rejected Items (Not editable): 
-                        @foreach($rejectedItems as $item)
-                            Rejected: {{ $item->item_name }}. Reason: {{ $item->patron_comment ?? 'No reason provided.' }}
-                            @if(!$loop->last) | @endif
-                        @endforeach
-                    </p>
+                <div class="px-8 py-4 bg-red-50/50 border-t border-gray-100">
+                    <div class="flex items-start space-x-3">
+                        <svg class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        <div>
+                            <p class="text-xs font-bold text-red-800 uppercase tracking-widest mb-2">Rejected Items (Omitted from Budget)</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                @foreach($rejectedItems as $item)
+                                    <div class="bg-white/60 p-3 rounded-xl border border-red-100">
+                                        <div class="font-bold text-gray-800">{{ $item->item_name }}</div>
+                                        <div class="text-[11px] text-red-600 italic">"{{ $item->patron_comment ?? 'No reason provided.' }}"</div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 @endif
 
-                <div class="bg-[#f1f3f6] px-6 py-6 flex items-center border-t border-gray-200">
-                    <div class="text-base font-black text-black">FINAL BUDGET:</div>
-                    <div class="ml-24 text-2xl font-black text-[#15803d] tabular-nums">
-                        <span id="grand-total">{{ (int)$event->grand_total }}</span>
+                <div class="px-8 py-8 bg-[#f8fafc] border-t border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+                    <div class="flex items-center space-x-4">
+                        <div class="bg-[#15803d]/10 p-3 rounded-2xl">
+                            <svg class="w-8 h-8 text-[#15803d]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="text-xs font-black text-gray-400 uppercase tracking-widest">Final Authorized Budget</div>
+                            <div class="text-sm font-medium text-gray-500">Authorized expenditure for this event</div>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline space-x-2">
+                        <span class="text-lg font-bold text-gray-400">PKR</span>
+                        <span id="grand-total" class="text-5xl font-black text-[#15803d] tabular-nums tracking-tighter">
+                            {{ (int)$event->grand_total }}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -178,6 +226,7 @@
                     const table = document.getElementById('budget-table');
                     const qtyInputs = table.querySelectorAll('.qty-input');
                     const rateInputs = table.querySelectorAll('.rate-input');
+                    const amountInputs = table.querySelectorAll('.amount-input');
                     const actionRadios = table.querySelectorAll('.approve-radio, .reject-radio');
                     const grandTotalSpan = document.getElementById('grand-total');
 
@@ -188,27 +237,29 @@
                         rows.forEach(row => {
                             const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
                             const rate = parseFloat(row.querySelector('.rate-input').value) || 0;
-                            const approved = row.querySelector('.approve-radio').checked;
-                            const rowTotalSpan = row.querySelector('.row-total');
+                            const amount = qty * rate;
                             
-                            const total = qty * rate;
-                            rowTotalSpan.textContent = total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            // Update the amount input for this row
+                            row.querySelector('.amount-input').value = amount.toFixed(0);
+                            
+                            const approved = row.querySelector('.approve-radio').checked;
                             
                             if (approved) {
-                                grandTotal += total;
-                                rowTotalSpan.classList.remove('text-red-500', 'line-through');
-                                rowTotalSpan.classList.add('text-[#63499a]');
+                                grandTotal += amount;
+                                row.querySelector('.amount-input').classList.remove('text-red-500', 'line-through');
+                                row.querySelector('.amount-input').classList.add('text-cause-purple');
                             } else {
-                                rowTotalSpan.classList.add('text-red-500', 'line-through');
-                                rowTotalSpan.classList.remove('text-[#63499a]');
+                                row.querySelector('.amount-input').classList.add('text-red-500', 'line-through');
+                                row.querySelector('.amount-input').classList.remove('text-cause-purple');
                             }
                         });
                         
-                        grandTotalSpan.textContent = grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        grandTotalSpan.textContent = Math.round(grandTotal).toLocaleString();
                     }
 
                     qtyInputs.forEach(input => input.addEventListener('input', calculateTotals));
                     rateInputs.forEach(input => input.addEventListener('input', calculateTotals));
+                    amountInputs.forEach(input => input.addEventListener('input', calculateTotals));
                     actionRadios.forEach(radio => radio.addEventListener('change', calculateTotals));
                     
                     // Initial calculation
@@ -305,7 +356,7 @@
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                             </svg>
-                            Approve & Forward to SA
+                            Final Approve
                         </button>
                         @else
                         <button type="button" disabled

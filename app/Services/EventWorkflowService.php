@@ -46,7 +46,7 @@ class EventWorkflowService
                         'event_id' => $event->id,
                         'item_name' => $itemData['item_name'],
                         'quantity' => $itemData['quantity'],
-                        'unit_rate' => $itemData['unit_rate'],
+                        'total_amount' => $itemData['total_amount'],
                     ]);
                 }
             }

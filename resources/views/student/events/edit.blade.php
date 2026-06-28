@@ -5,18 +5,7 @@
 @section('page-description', 'Update your event submission')
 
 @section('sidebar')
-    <a href="{{ route('student.dashboard') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-        </svg>
-        Dashboard
-    </a>
-    <a href="{{ route('student.events.index') }}" class="sidebar-link active flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-        </svg>
-        My Events
-    </a>
+    @include('partials.student-sidebar')
 @endsection
 
 @section('content')
@@ -74,14 +63,59 @@
                     @enderror
                 </div>
                 
+
+            </div>
+        </div>
+
+        <!-- Guest Speaker & Faculty Mentor -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Guest Speaker & Faculty Mentor</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Venue *</label>
-                    <input type="text" name="venue" value="{{ old('venue', $event->venue) }}" required
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple">
-                    @error('venue')
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Guest Speaker Name</label>
+                    <input type="text" name="guest_speaker_name" value="{{ old('guest_speaker_name', $event->guest_speaker_name) }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple"
+                           placeholder="Enter guest speaker name">
+                    @error('guest_speaker_name')
                         <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                     @enderror
                 </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Guest Speaker Designation</label>
+                    <input type="text" name="guest_speaker_designation" value="{{ old('guest_speaker_designation', $event->guest_speaker_designation) }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple"
+                           placeholder="Enter guest speaker designation">
+                    @error('guest_speaker_designation')
+                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Guest Speaker Profile Link (LinkedIn/Website)</label>
+                    <input type="url" name="guest_speaker_profile_link" value="{{ old('guest_speaker_profile_link', $event->guest_speaker_profile_link) }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple"
+                           placeholder="https://linkedin.com/in/username">
+                    @error('guest_speaker_profile_link')
+                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select Faculty Mentor</label>
+                <select name="faculty_mentor_id"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple">
+                    <option value="">-- Select a Faculty Mentor --</option>
+                    @foreach($facultyMembers as $faculty)
+                        <option value="{{ $faculty->id }}" {{ old('faculty_mentor_id', $event->faculty_mentor_id) == $faculty->id ? 'selected' : '' }}>
+                            {{ $faculty->name }} ({{ $faculty->reg_id }})
+                        </option>
+                    @endforeach
+                </select>
+                <p class="text-gray-500 text-sm mt-1">A notification message will be sent to the selected mentor</p>
+                @error('faculty_mentor_id')
+                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                @enderror
             </div>
         </div>
         
@@ -89,8 +123,8 @@
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
             <div class="flex justify-between items-center mb-4">
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-800">Budget Items *</h3>
-                    <p class="text-gray-600 text-sm">Update your budget items</p>
+                    <h3 class="text-lg font-semibold text-gray-800">Requirements *</h3>
+                    <p class="text-gray-600 text-sm">Update your event requirements</p>
                 </div>
                 <button type="button" onclick="addBudgetItem()" 
                         class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center">
@@ -101,32 +135,32 @@
                 </button>
             </div>
             
-            <div id="budgetItems">
-                <!-- Existing items will be loaded here -->
-            </div>
-            
-            <!-- Grand Total -->
-            <div class="mt-6 pt-4 border-t border-gray-200">
-                <div class="flex justify-end items-center">
-                    <span class="text-lg font-semibold text-gray-800 mr-4">Grand Total:</span>
-                    <span id="grandTotal" class="text-2xl font-bold text-cause-purple">PKR 0</span>
-                </div>
-            </div>
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b">
+                        <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Item Name</th>
+                        <th class="px-4 py-2 text-left text-sm font-medium text-gray-700 w-32">Quantity</th>
+                        <th class="px-4 py-2 text-center text-sm font-medium text-gray-700 w-20">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="budgetItems">
+                    <!-- Existing items will be loaded here -->
+                </tbody>
+            </table>
         </div>
         
-        <!-- Submit Buttons -->
-        <div class="flex justify-end space-x-4">
-            <a href="{{ route('student.events.show', $event->id) }}" 
-               class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                Cancel
-            </a>
-            <button type="submit" 
-                    class="bg-cause-purple hover:bg-purple-700 text-white px-6 py-2 rounded-lg flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
-                Update & Resubmit
-            </button>
+        <div class="bg-white rounded-lg shadow-md p-6 flex justify-between items-center">
+            <span class="text-gray-600 text-sm italic">Estimated budget will be reviewed by administration.</span>
+            <div class="flex space-x-4">
+                <a href="{{ route('student.events.show', $event->id) }}" 
+                   class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="bg-cause-purple hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-semibold transition-all shadow-lg hover:shadow-purple-200">
+                    Update & Resubmit Proposal
+                </button>
+            </div>
         </div>
     </form>
 
@@ -134,72 +168,39 @@
         let itemCount = 0;
         const existingItems = @json($event->items);
         
-        function addBudgetItem(name = '', quantity = 1, rate = '') {
+        function addBudgetItem(name = '', quantity = 1) {
             itemCount++;
             const container = document.getElementById('budgetItems');
             
-            const itemHtml = `
-                <div class="budget-item bg-gray-50 rounded-lg p-4 mb-4" id="item-${itemCount}">
-                    <div class="flex justify-between items-start mb-3">
-                        <span class="text-sm font-medium text-gray-600">Item #${itemCount}</span>
-                        <button type="button" onclick="removeBudgetItem(${itemCount})" class="text-red-500 hover:text-red-700">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Item Name *</label>
-                            <input type="text" name="items[${itemCount}][name]" value="${name}" required
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
-                            <input type="number" name="items[${itemCount}][quantity]" min="1" value="${quantity}" required
-                                   onchange="calculateTotal()" oninput="calculateTotal()"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple item-quantity">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Unit Rate (PKR) *</label>
-                            <input type="number" name="items[${itemCount}][unit_rate]" min="0" step="0.01" value="${rate}" required
-                                   onchange="calculateTotal()" oninput="calculateTotal()"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cause-purple focus:border-cause-purple item-rate">
-                        </div>
-                    </div>
-                </div>
+            const row = document.createElement('tr');
+            row.id = `item-${itemCount}`;
+            row.className = 'budget-item border-b';
+            row.innerHTML = `
+                <td class="px-4 py-2">
+                    <input type="text" name="items[${itemCount}][name]" value="${name}" required
+                           class="w-full px-3 py-1 border border-gray-300 rounded focus:ring-cause-purple focus:border-cause-purple">
+                </td>
+                <td class="px-4 py-2">
+                    <input type="number" name="items[${itemCount}][quantity]" value="${quantity}" required min="1"
+                           class="w-full px-3 py-1 border border-gray-300 rounded focus:ring-cause-purple focus:border-cause-purple">
+                </td>
+                <td class="px-4 py-2 text-center">
+                    <button type="button" onclick="this.closest('tr').remove()" class="text-red-500 hover:text-red-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </td>
             `;
             
-            container.insertAdjacentHTML('beforeend', itemHtml);
-            calculateTotal();
-        }
-        
-        function removeBudgetItem(id) {
-            const item = document.getElementById(`item-${id}`);
-            if (item) {
-                item.remove();
-                calculateTotal();
-            }
-        }
-        
-        function calculateTotal() {
-            let total = 0;
-            const items = document.querySelectorAll('.budget-item');
-            
-            items.forEach(item => {
-                const quantity = parseFloat(item.querySelector('.item-quantity')?.value) || 0;
-                const rate = parseFloat(item.querySelector('.item-rate')?.value) || 0;
-                total += quantity * rate;
-            });
-            
-            document.getElementById('grandTotal').textContent = 'PKR ' + total.toLocaleString('en-PK', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+            container.appendChild(row);
         }
         
         // Load existing items on page load
         document.addEventListener('DOMContentLoaded', function() {
             if (existingItems.length > 0) {
                 existingItems.forEach(item => {
-                    addBudgetItem(item.item_name, item.quantity, item.unit_rate);
+                    addBudgetItem(item.item_name, item.quantity);
                 });
             } else {
                 addBudgetItem();

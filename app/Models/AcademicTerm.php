@@ -13,6 +13,7 @@ class AcademicTerm extends Model
 
     protected $fillable = [
         'term_name',
+        'term_code',
         'status',
         'start_date',
         'end_date',
@@ -100,5 +101,51 @@ class AcademicTerm extends Model
         
         // Activate this term
         $this->update(['status' => 'active']);
+    }
+
+    /**
+     * Suggest next term details based on the YYT pattern.
+     */
+    public static function suggestNextTerm(): array
+    {
+        $last = self::orderBy('term_code', 'desc')->first();
+        
+        if (!$last) {
+            return [
+                'term_code' => '261',
+                'term_name' => '261 - Spring 2026',
+                'start_date' => date('Y-02-01'),
+                'end_date' => date('Y-05-31')
+            ];
+        }
+
+        $lastCode = $last->term_code;
+        $year = (int)substr($lastCode, 0, 2);
+        $termNum = (int)substr($lastCode, 2, 1);
+
+        if ($termNum >= 3) {
+            $nextYear = $year + 1;
+            $nextTermNum = 1;
+        } else {
+            $nextYear = $year;
+            $nextTermNum = $termNum + 1;
+        }
+
+        $nextCode = (string)$nextYear . (string)$nextTermNum;
+        $termNames = [1 => 'Spring', 2 => 'Summer', 3 => 'Fall'];
+        $fullYear = "20" . $nextYear;
+        
+        $termLabel = $termNames[$nextTermNum];
+        $name = "{$nextCode} - {$termLabel} {$fullYear}";
+
+        $startDate = \Carbon\Carbon::parse($last->end_date)->addDay();
+        $endDate = $startDate->copy()->addMonths(4)->subDay();
+
+        return [
+            'term_code' => $nextCode,
+            'term_name' => $name,
+            'start_date' => $startDate->format('Y-m-d'),
+            'end_date' => $endDate->format('Y-m-d')
+        ];
     }
 }

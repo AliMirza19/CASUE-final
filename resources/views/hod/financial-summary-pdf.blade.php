@@ -16,17 +16,28 @@
         .header {
             text-align: center;
             border-bottom: 2px solid #8B5CF6;
-            padding-bottom: 20px;
+            padding-bottom: 10px;
             margin-bottom: 30px;
+        }
+        .header-table {
+            width: 100%;
+            border: none;
+            margin-bottom: 10px;
+        }
+        .header-table td {
+            border: none;
+            vertical-align: middle;
         }
         .header h1 {
             color: #8B5CF6;
             margin: 0;
-            font-size: 28px;
+            font-size: 24px;
+            text-transform: uppercase;
         }
         .header p {
-            margin: 5px 0;
+            margin: 2px 0;
             color: #666;
+            font-size: 12px;
         }
         .metrics-grid {
             display: grid;
@@ -136,12 +147,32 @@
     </style>
 </head>
 <body>
-    <!-- Header -->
     <div class="header">
-        <h1>CAUSE Society Financial Summary</h1>
-        <p><strong>Term:</strong> {{ $activeTerm ? $activeTerm->term_name : 'Current Term' }}</p>
-        <p><strong>Generated:</strong> {{ now()->format('F d, Y \a\t g:i A') }}</p>
-        <p><strong>Report Type:</strong> Comprehensive Financial Analysis</p>
+        <table class="header-table">
+            <tr>
+                <td style="width: 20%; text-align: left;">
+                    <img src="https://admission.cust.edu.pk/web/image/website/1/logo?unique=f3e0a29" style="height: 70px; width: auto;">
+                </td>
+                <td style="width: 60%; text-align: center;">
+                    <h1>CAUSE Society Financial Summary</h1>
+                    <p><strong>Term:</strong> {{ $activeTerm ? $activeTerm->term_name : 'Current Term' }}</p>
+                    <p><strong>Generated:</strong> {{ now()->format('F d, Y \a\t g:i A') }}</p>
+                </td>
+                <td style="width: 20%; text-align: right;">
+                    @php
+                        $logoPath = public_path('images/cause-logo.png');
+                        $logoData = '';
+                        if (file_exists($logoPath)) {
+                            $logoData = base64_encode(file_get_contents($logoPath));
+                        }
+                    @endphp
+                    @if($logoData)
+                        <img src="data:image/png;base64,{{ $logoData }}" style="height: 70px; width: auto;">
+                    @endif
+                </td>
+            </tr>
+        </table>
+        <p style="font-size: 11px; color: #888;">Capital University of Science & Technology - CAUSE Smart Management System</p>
     </div>
 
     <!-- Budget Alerts -->
@@ -300,5 +331,10 @@
         <p>For questions or concerns, please contact the system administrator.</p>
         <p><strong>Generated on:</strong> {{ now()->format('F d, Y \a\t g:i:s A') }}</p>
     </div>
+    <script>
+        window.onload = function() {
+            window.print();
+        };
+    </script>
 </body>
-</html>
+</html>

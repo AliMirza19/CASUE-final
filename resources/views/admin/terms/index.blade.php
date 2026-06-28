@@ -5,24 +5,7 @@
 @section('page-description', 'Create and manage academic terms')
 
 @section('sidebar')
-    <a href="{{ route('admin.dashboard') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-        </svg>
-        Dashboard
-    </a>
-    <a href="{{ route('admin.terms.index') }}" class="sidebar-link active flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-        </svg>
-        Manage Terms
-    </a>
-    <a href="{{ route('admin.users.index') }}" class="sidebar-link flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100">
-        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-        </svg>
-        Manage Users
-    </a>
+    @include('partials.admin-sidebar')
 @endsection
 
 @section('content')
@@ -40,6 +23,7 @@
         <table class="w-full">
             <thead class="bg-gray-50">
                 <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Term Code</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Term Name</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start Date</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">End Date</th>
@@ -50,7 +34,8 @@
             <tbody class="bg-white divide-y divide-gray-200">
                 @forelse ($terms as $term)
                     <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 font-medium text-gray-800">{{ $term->name }}</td>
+                        <td class="px-6 py-4 font-bold text-cause-purple">{{ $term->term_code }}</td>
+                        <td class="px-6 py-4 font-medium text-gray-800">{{ $term->term_name }}</td>
                         <td class="px-6 py-4 text-gray-600">{{ \Carbon\Carbon::parse($term->start_date)->format('M d, Y') }}</td>
                         <td class="px-6 py-4 text-gray-600">{{ \Carbon\Carbon::parse($term->end_date)->format('M d, Y') }}</td>
                         <td class="px-6 py-4 text-center">

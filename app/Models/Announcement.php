@@ -11,18 +11,19 @@ class Announcement extends Model
     use HasFactory;
 
     protected $fillable = [
+        'user_id',
         'title',
-        'message',
-        'created_by',
-        'target_roles',
-        'is_active',
+        'description',
+        'image_url',
+        'link_url',
+        'target_role',
+        'expires_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'target_roles' => 'array',
-            'is_active' => 'boolean',
+            'expires_at' => 'datetime',
         ];
     }
 
@@ -31,7 +32,7 @@ class Announcement extends Model
      */
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     /**
@@ -39,7 +40,7 @@ class Announcement extends Model
      */
     public function isActive(): bool
     {
-        return $this->is_active;
+        return is_null($this->expires_at) || $this->expires_at->isFuture();
     }
 
     /**
@@ -47,7 +48,7 @@ class Announcement extends Model
      */
     public function isTargetedToRole(string $role): bool
     {
-        return empty($this->target_roles) || in_array($role, $this->target_roles);
+        return empty($this->target_role) || $this->target_role === $role;
     }
 
     /**
@@ -55,10 +56,13 @@ class Announcement extends Model
      */
     public static function getActiveForRole(string $role)
     {
-        return self::where('is_active', true)
+        return self::where(function ($query) {
+                        $query->whereNull('expires_at')
+                              ->orWhere('expires_at', '>', now());
+                    })
                    ->where(function ($query) use ($role) {
-                       $query->whereNull('target_roles')
-                             ->orWhereJsonContains('target_roles', $role);
+                        $query->whereNull('target_role')
+                              ->orWhere('target_role', $role);
                    })
                    ->orderBy('created_at', 'desc')
                    ->get();
@@ -69,24 +73,11 @@ class Announcement extends Model
      */
     public static function getActive()
     {
-        return self::where('is_active', true)
+        return self::where(function ($query) {
+                        $query->whereNull('expires_at')
+                              ->orWhere('expires_at', '>', now());
+                    })
                    ->orderBy('created_at', 'desc')
                    ->get();
-    }
-
-    /**
-     * Activate this announcement.
-     */
-    public function activate(): void
-    {
-        $this->update(['is_active' => true]);
-    }
-
-    /**
-     * Deactivate this announcement.
-     */
-    public function deactivate(): void
-    {
-        $this->update(['is_active' => false]);
     }
 }

@@ -17,7 +17,13 @@ class DashboardController extends Controller
     /**
      * Display the faculty dashboard with overview stats.
      */
-    public function index(): View
+    public function index()
+    {
+        $announcements = \App\Models\Announcement::with('creator')->latest()->take(6)->get();
+        return view('faculty.dashboard', compact('announcements'));
+    }
+
+    public function overview(): View
     {
         $activeTerm = AcademicTerm::getActive();
         
@@ -56,7 +62,7 @@ class DashboardController extends Controller
         $announcements = Announcement::getActiveForRole('faculty');
         $stats['announcements'] = $announcements->count();
         
-        return view('faculty.dashboard', compact('stats', 'recentEvents', 'announcements', 'activeTerm'));
+        return view('faculty.overview', compact('stats', 'recentEvents', 'announcements', 'activeTerm'));
     }
     
     /**
@@ -124,8 +130,8 @@ class DashboardController extends Controller
      */
     public function profile(): View
     {
-        $user = Auth::user();
-        return view('faculty.profile', compact('user'));
+        $user = \Illuminate\Support\Facades\Auth::user();
+        return view('profile.show', compact('user'));
     }
     
     /**
